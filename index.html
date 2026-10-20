@@ -821,7 +821,8 @@ function vSet(){
   const L=UI.layPref;
   return `<section class="card"><h3>Licence ${APP}</h3>${licenceBox(false)}</section>
   <section class="card"><h3>Affichage</h3><div class="seg layout-seg">${[["auto","Automatique"],["mobile","Mobile"],["desk","Ordinateur"]].map(([k,l])=>`<button data-act="layPref" data-v="${k}" aria-pressed="${L===k}">${l}</button>`).join("")}</div>
-  <span class="small muted">Automatique : version ordinateur sur grand écran, version mobile sur téléphone.</span></section>
+  <span class="small muted">Automatique : version ordinateur sur grand écran, version mobile sur téléphone.</span>
+  <h3>Couleurs</h3><div class="seg layout-seg">${[["light","Clair"],["dark","Sombre"],["auto","Comme l'appareil"]].map(([k,l])=>`<button data-act="themePref" data-v="${k}" aria-pressed="${UI.theme===k}">${l}</button>`).join("")}</div></section>
   <section class="card"><h3>Logo de l'établissement</h3>
   <div class="logo-pick"><div class="prev">${e.logo?`<img src="${e.logo}" alt="Logo">`:"Aucun logo"}</div>
   <div style="display:flex;flex-direction:column;gap:8px"><button class="btn" data-act="pickLogo">${e.logo?"Changer le logo":"Choisir une image"}</button>${e.logo?`<button class="btn ghost danger" data-act="delLogo">Retirer</button>`:""}
@@ -1140,6 +1141,7 @@ document.addEventListener("click",async e=>{
     case "edtMode": UI.edtMode=v;UI.edtId=null;UI.sel=null;render();break;
     case "openEdt": UI.tab="edt";UI.edtMode="classe";UI.edtId=v;UI.sel=null;render();scrollTo(0,0);break;
     case "layPref": UI.layPref=v;try{localStorage.setItem(LAYKEY,v)}catch(e){}applyLayout();render();toast(v==="desk"?"Version ordinateur":v==="mobile"?"Version mobile":"Affichage automatique");break;
+    case "themePref": UI.theme=v;try{localStorage.setItem(THKEY,v)}catch(e){}applyTheme();render();break;
     case "goPick": UI.edtId=v;UI.sel=null;render();break;
     case "goClass": UI.edtMode="classe";UI.edtId=v;UI.sel=null;render();break;
     case "cell": cellTap(t.dataset.k);break;
@@ -1191,6 +1193,10 @@ try{UI.layPref=localStorage.getItem(LAYKEY)||"auto"}catch(e){UI.layPref="auto"}
 const mq=matchMedia("(min-width: 1000px)");
 function applyLayout(){const lay=UI.layPref==="auto"?(mq.matches?"desk":"mob"):(UI.layPref==="desk"?"desk":"mob");
   const changed=UI.lay!==lay;UI.lay=lay;document.documentElement.dataset.layout=lay;return changed}
+const THKEY="horairepro-theme";
+try{UI.theme=localStorage.getItem(THKEY)||"light"}catch(e){UI.theme="light"}
+function applyTheme(){if(UI.theme==="auto")delete document.documentElement.dataset.theme;else document.documentElement.dataset.theme=UI.theme}
+applyTheme();
 applyLayout();
 mq.addEventListener?.("change",()=>{if(applyLayout()&&S) render()});
 
