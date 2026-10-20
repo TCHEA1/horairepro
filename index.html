@@ -820,11 +820,12 @@ function sheetSalle(id){const r=id?salle(id):{nom:"",type:"Classe",multi:false};
   <label class="check"><input type="checkbox" id="fs-multi" ${r.multi?"checked":""}><span>Peut accueillir plusieurs classes en même temps (terrain de sport, cour…)</span></label>
   <div class="row">${id?`<button class="btn danger" data-act="delSalle" data-v="${id}">Supprimer</button>`:""}<button class="btn grow" data-act="close">Annuler</button><button class="btn primary grow" data-act="saveSalle" data-v="${id||""}">Enregistrer</button></div>`)}
 function salleSelect(idName,cur,empty){return `<select id="${idName}"><option value="">${empty}</option>${S.salles.map(r=>`<option value="${r.id}" ${cur===r.id?"selected":""}>${esc(r.nom)}</option>`).join("")}</select>`}
-function vDecoup(levels){if(!levels.length)return "";if(!levels.find(n=>n.id===UI.decNiv))UI.decNiv=(levels.find(n=>n.id==="TleD")||levels[levels.length-1]).id;
+function vDecoup(levels){if(!levels.length)return "";if(!levels.find(n=>n.id===UI.decNiv))UI.decNiv=(levels.find(n=>S.classes.some(c=>c.niveau===n.id))||levels[0]).id;
   const n=NIV.find(x=>x.id===UI.decNiv);const g=S.grille[n.id]||{};const rows=S.matieres.filter(m=>+g[m.id]>0);
   return `<section class="card"><h3>Séances : heures collées</h3>
   <p class="muted small" style="margin:0">Choisissez comment chaque matière est découpée dans la semaine. Ex : PC 5 h en Tle D → <b>2 h + 2 h + 1 h</b> (deux fois deux heures collées, comme 7H15–9H05, et une heure ailleurs). « Automatique » suit le réglage des séances de 2 h.</p>
-  <div class="chips">${levels.map(x=>`<button class="cchip ${x.id===n.id?"on":""}" data-act="decNiv" data-v="${x.id}">${esc(x.l)}</button>`).join("")}</div>
+  <div class="chips">${levels.map(x=>{const has=S.classes.some(c=>c.niveau===x.id);const set=Object.keys(S.decoup[x.id]||{}).length;return `<button class="cchip ${x.id===n.id?"on":""} ${has?"":"taken"}" data-act="decNiv" data-v="${x.id}">${esc(x.l)}${set?" ✓":""}</button>`}).join("")}</div>
+  <span class="small muted">Tous les niveaux de la 6ème à la Terminale A, C, D. Les niveaux en pointillé n'ont pas encore de classe dans l'établissement. ✓ = découpage choisi.</span>
   <div class="list">${rows.map(m=>{const h=+g[m.id];const cur=(S.decoup[n.id]||{})[m.id]||"";const auto=autoSplit(m,h).join("+");const opts=splitOptions(h);
     return `<div class="item" style="cursor:default"><span class="mat" style="${hcode(m.h)}">${esc(m.code)}</span><span class="small muted" style="width:44px">${fmtH(h)}</span>
     <select class="in" style="flex:1;min-width:0" id="dc-${n.id}-${m.id}" data-act="decoup" data-n="${n.id}" data-m="${m.id}">
@@ -835,7 +836,7 @@ function vMats(){
   const showN=nivs.length?nivs:NIV.slice(0,4);
   return `<section class="card"><div class="sec-title"><h3>Matières</h3><button class="btn primary" data-act="editMat">+ Matière</button></div>
   <div class="list">${S.matieres.map(m=>`<button class="item" data-act="editMat" data-v="${m.id}"><span class="mat" style="${hcode(m.h)}">${esc(m.code)}</span><span class="grow"><b>${esc(m.nom)}</b><span>${[m.bloc?"Séances de 2 h":"Séances d'1 h",m.matin?"plutôt le matin":""].filter(Boolean).join(" · ")}</span></span><span class="chev">›</span></button>`).join("")}</div></section>
-  ${vDecoup(showN)}
+  ${vDecoup(NIV.filter(n=>Object.values(S.grille[n.id]||{}).some(v=>+v>0)))}
   <section class="card"><div class="sec-title"><h3>Volumes horaires par semaine</h3><button class="btn" data-act="resetGrid">Horaires officiels</button></div><p class="muted small" style="margin:0">Horaires officiels de la circulaire n°0311/MENA/CAB/DPFC du 1er septembre 2025, modifiables. Une heure = un créneau. <b>1,5</b> = <b>1h30</b> : 1 h chaque semaine + 1 h une semaine sur deux (semaine A ou B). Chaque matière garde ses propres heures. Les heures d'un professeur au-delà de ses heures dues comptent en heures supplémentaires.</p>
   <div class="scroll"><table class="vol"><thead><tr><th>Matière</th>${showN.map(n=>`<th>${esc(n.l)}</th>`).join("")}</tr></thead>
   <tbody>${S.matieres.map(m=>`<tr><td><span class="mat" style="${hcode(m.h)}">${esc(m.code)}</span></td>${showN.map(n=>`<td><input type="number" min="0" max="12" step="0.5" inputmode="decimal" id="v-${n.id}-${m.id}" data-act="vol" data-n="${n.id}" data-m="${m.id}" value="${(S.grille[n.id]||{})[m.id]||""}"></td>`).join("")}</tr>`).join("")}</tbody>
