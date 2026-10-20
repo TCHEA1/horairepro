@@ -430,6 +430,9 @@ function migrate(x){const d=defaultState();for(const k in d) if(x[k]===undefined
   x.etab={...defaultEtab(),...x.etab};
   x.profs.forEach(p=>{p.matricule=p.matricule||"";p.origine=p.origine||"";p.indispo=p.indispo||{};if(p.maxAuto===undefined)p.maxAuto=(+p.max===24)});
   x.salles=x.salles||[];x.history=x.history||[];x.decoup=x.decoup||{};
+  {const eps=x.matieres.find(m=>m.id==="EPS");if(eps){let t=x.salles.find(r=>r.id===eps.salle&&/^Terrain|Plateau/i.test(r.type||""))||x.salles.find(r=>/^Terrain|Plateau/i.test(r.type||""));
+    if(!t){t={id:uid(),nom:"Terrain de sport",type:"Terrain / Plateau EPS",multi:true};x.salles.push(t)}eps.salle=t.id;
+    for(const cid in x.sched||{})for(const v of Object.values(x.sched[cid])) if(v.m==="EPS"&&!(x.salles.find(r=>r.id===v.r&&/^Terrain|Plateau/i.test(r.type||""))))v.r=t.id}}
   {const seen={};for(const c of x.classes){if(c.pp){if(seen[c.pp])c.pp=null;else seen[c.pp]=1}}}
   {let dropped=0;for(const cid in x.sched||{})for(const k of Object.keys(x.sched[cid])){if(x.sched[cid][k].w){delete x.sched[cid][k];dropped++}}if(dropped)x.gen.needRegen=true}setTimeout(()=>{if(S===x&&syncAff())save()},0);
   if(!x.gridV||x.gridV<3){x.grille=JSON.parse(JSON.stringify(GRILLE_OFFICIELLE));
@@ -513,7 +516,11 @@ const salleNom=id=>salle(id)?.nom||"";
 function roomChoices(cid,mid){const m=mid==="__none"?null:mat(mid),c=cls(cid);const out=[];const add=id=>{if(id&&salle(id)&&!out.includes(id))out.push(id)};
   if(m&&m.salle&&salle(m.salle)){add(m.salle);const t=salle(m.salle).type;const reserved=new Set(S.matieres.filter(o=>o.id!==mid&&o.salle).map(o=>o.salle));
     S.salles.filter(r=>r.type===t&&!r.multi&&!reserved.has(r.id)).forEach(r=>add(r.id))}
+  if(isSportMat(mid)){S.salles.filter(r=>isTerrain(r)).forEach(r=>add(r.id));return out.length?out:[""]}
   add(c?.salle);return out.length?out:[""]}
+const isTerrain=r=>!!r&&/^Terrain|Plateau/i.test(r.type||"");
+function isSportMat(mid){const m=mat(mid);if(!m)return false;return m.id==="EPS"||isTerrain(salle(m.salle))}
+const lieuMot=(mid,cap)=>isSportMat(mid)?(cap?"Terrain":"terrain"):(cap?"Salle":"salle");
 function roomFor(cid,mid){const m=mat(mid),c=cls(cid);return (m&&m.salle&&salle(m.salle)?m.salle:"")||(c&&c.salle&&salle(c.salle)?c.salle:"")||""}
 // Semaine A / B : une heure partagée entre deux cours qui alternent d'une semaine sur l'autre
 const BKEY=k=>k.split("/")[0];
@@ -785,7 +792,7 @@ function vHome(){
 
 /* ---------- Saisie ---------- */
 function vData(){
-  const subs=[["classes","Classes"],["profs","Professeurs"],["mats","Matières"],["salles","Salles"],["aff","Affectations"]];
+  const subs=[["classes","Classes"],["profs","Professeurs"],["mats","Matières"],["salles","Salles & terrains"],["aff","Affectations"]];
   return `<div class="seg" role="group">${subs.map(([k,l])=>`<button data-act="sub" data-v="${k}" aria-pressed="${UI.sub===k}">${l}</button>`).join("")}</div>
   ${({classes:vClasses,profs:vProfs,mats:vMats,salles:vSalles,aff:vAff})[UI.sub]()}`;
 }
@@ -805,17 +812,19 @@ function vProfs(){
   :`<div class="empty">Aucun professeur pour l'instant.<button class="btn primary" data-act="editProf">Ajouter un professeur</button></div>`}</section>`;
 }
 const STYPES=["Classe","Laboratoire","Salle informatique","Terrain / Plateau EPS","Salle polyvalente","Autre"];
+const TERRAIN_TYPE="Terrain / Plateau EPS";
 function vSalles(){
   const use={};for(const c of S.classes)for(const v of Object.values(S.sched[c.id]||{})) if(v.r) use[v.r]=(use[v.r]||0)+W(v);
   const tileOf=t=>t==="Laboratoire"?"violet":t==="Salle informatique"?"blue":t.startsWith("Terrain")?"green":t==="Classe"?"teal":"orange";
-  return `<section class="card"><div class="sec-title"><h3>${S.salles.length} salles</h3><div class="row"><button class="btn" data-act="autoSalles">+ Une par classe</button><button class="btn primary" data-act="editSalle">+ Salle</button></div></div>
+  return `<section class="card"><div class="sec-title"><h3>${S.salles.filter(r=>!isTerrain(r)).length} salles · ${S.salles.filter(isTerrain).length} terrain${S.salles.filter(isTerrain).length>1?"s":""}</h3><div class="row"><button class="btn" data-act="autoSalles">+ Une par classe</button><button class="btn" data-act="newTerrain">+ Terrain</button><button class="btn primary" data-act="editSalle">+ Salle</button></div></div>
   ${S.salles.length?`<div class="list">${S.salles.map(r=>{const who=[...S.classes.filter(c=>c.salle===r.id).map(c=>c.nom),...S.matieres.filter(m=>m.salle===r.id).map(m=>"réservée "+m.code)];
     return `<button class="item" data-act="editSalle" data-v="${r.id}"><span class="tile ${tileOf(r.type)}">${svg("school")}</span><span class="grow"><b>${esc(r.nom)}</b><span>${esc(r.type)}${who.length?" · "+esc(who.join(", ")):""}${r.multi?" · plusieurs classes à la fois":""}</span></span><span class="chip">${fmtH(use[r.id]||0)}</span></button>`}).join("")}</div>`
   :`<div class="empty">Aucune salle. Ajoutez vos salles de classe, laboratoires, salle informatique, terrain de sport…<button class="btn primary" data-act="autoSalles">Créer une salle par classe</button></div>`}</section>
-  <div class="tip"><span class="tile green" style="width:36px;height:36px">${svg("bulb")}</span><div><b>Comment sont choisies les salles ?</b>Chaque classe a sa salle. Une salle peut être réservée à une matière (ex : Labo PC pour la PC, Labo SVT pour la SVT, terrain pour l’EPS). Deux classes ne sont jamais dans la même salle en même temps, sauf si la salle accepte plusieurs classes.</div></div>`}
+  <div class="tip"><span class="tile green" style="width:36px;height:36px">${svg("bulb")}</span><div><b>Comment sont choisies les salles et les terrains ?</b>Chaque classe a sa salle. Une salle peut être réservée à une matière (Labo PC, Labo SVT, salle informatique). L'EPS se fait toujours sur un terrain, jamais en salle : ajoutez vos terrains avec « + Terrain » (football, basket, plateau…). Deux classes ne sont jamais dans la même salle en même temps ; un terrain peut accueillir plusieurs classes.</div></div>`}
 function sheetSalle(id){const r=id?salle(id):{nom:"",type:"Classe",multi:false};
-  openSheet(`<h3>${id?"Modifier la salle":"Nouvelle salle"}</h3>
-  <div class="grid2"><label class="f">Nom<input id="fs-nom" value="${esc(r.nom)}" placeholder="ex : Salle 12, Labo 1, Bât. B"></label>
+  const T=id?isTerrain(r):UI.newT;UI.newT=false;if(!id&&T){r.type=TERRAIN_TYPE;r.multi=true}
+  openSheet(`<h3>${id?(T?"Modifier le terrain":"Modifier la salle"):(T?"Nouveau terrain":"Nouvelle salle")}</h3>
+  <div class="grid2"><label class="f">Nom<input id="fs-nom" value="${esc(r.nom)}" placeholder="${T?"ex : Terrain de football, Plateau de basket":"ex : Salle 12, Labo 1, Bât. B"}"></label>
   <label class="f">Type<select id="fs-type">${STYPES.map(t=>`<option ${r.type===t?"selected":""}>${t}</option>`).join("")}</select></label></div>
   <label class="f">Réservée à la matière<select id="fs-mat"><option value="">— Aucune (salle libre pour tous) —</option>${S.matieres.map(m=>`<option value="${m.id}" ${id&&m.salle===id?"selected":""}>${esc(m.nom)}</option>`).join("")}</select><span class="small muted" style="font-weight:500">Ex : Labo PC pour Physique-Chimie, Labo SVT pour SVT. Les cours de cette matière y vont en priorité, et les autres matières ne l'utilisent pas.</span></label>
   <label class="check"><input type="checkbox" id="fs-multi" ${r.multi?"checked":""}><span>Peut accueillir plusieurs classes en même temps (terrain de sport, cour…)</span></label>
@@ -1020,11 +1029,12 @@ function ficheProf(p){
 function vActionBar(){const it=itemsAt(UI.edtId,UI.sel.k);const v=it[0];const m=v&&mat(v.m);
   const [d,s]=UI.sel.k.split("-").map(Number);
   return `<div class="actionbar"><div class="in-bar"><span class="grow"><b>${esc(m?.code||"")}</b>${v?.r?" · "+esc(salleNom(v.r)):""} · ${JOURS[d].toLowerCase()} ${S.creneaux[s].debut} · touchez une autre case</span>
-  <button class="btn" data-act="pickRoom">Salle</button><button class="btn" data-act="clearCell">Retirer</button><button class="btn" data-act="cancelSel">Annuler</button></div></div>`}
+  <button class="btn" data-act="pickRoom">${v&&isSportMat(v.m)?"Terrain":"Salle"}</button><button class="btn" data-act="clearCell">Retirer</button><button class="btn" data-act="cancelSel">Annuler</button></div></div>`}
 function sheetRoom(){const cid=UI.edtId,k=UI.sel.k;const it=itemsAt(cid,k);if(!it.length)return;const v=it[0];const c=cls(cid);
   const busy=rid=>{const r=salle(rid);if(!r||r.multi)return null;const mk=MASK(v);for(const o of S.classes){if(o.id===cid)continue;for(const x of itemsAt(o.id,k)) if(x.r===rid&&(MASK(x)&mk)) return o}return null};
-  openSheet(`<h3>Salle du cours</h3><p class="small muted" style="margin:0">${esc(c.nom)} · ${esc(mat(v.m)?.nom)} · ${keyLbl(k)}. Ce choix ne change que ce cours : le professeur peut être au labo à une heure et dans une autre salle à une autre heure.</p>
-  <div class="list">${S.salles.map(r=>{const b=busy(r.id);const cur=v.r===r.id;return `<button class="item" data-act="setRoom" data-v="${r.id}" ${b?"disabled style='opacity:.45;cursor:default'":""}><span class="tile ${r.type==="Laboratoire"?"violet":r.type==="Salle informatique"?"blue":r.type.startsWith("Terrain")?"green":"teal"}">${svg("school")}</span><span class="grow"><b>${esc(r.nom)}${cur?" · actuelle":""}</b><span>${b?"Occupée par "+esc(b.nom):esc(r.type)+(S.matieres.find(m=>m.salle===r.id&&m.id!==v.m)?" · réservée "+esc(S.matieres.find(m=>m.salle===r.id&&m.id!==v.m).code):"")+" · libre"}</span></span>${cur?`<span class="chip ok">✓</span>`:""}</button>`}).join("")||`<span class="small muted">Aucune salle. Ajoutez-en dans Saisie → Salles.</span>`}</div>
+  const sport=isSportMat(v.m);const list=S.salles.filter(r=>sport?isTerrain(r):!isTerrain(r));
+  openSheet(`<h3>${sport?"Terrain du cours":"Salle du cours"}</h3><p class="small muted" style="margin:0">${esc(c.nom)} · ${esc(mat(v.m)?.nom)} · ${keyLbl(k)}. ${sport?"L'EPS se fait toujours sur un terrain. Choisissez lequel.":"Ce choix ne change que ce cours : le professeur peut être au labo à une heure et dans une autre salle à une autre heure."}</p>
+  <div class="list">${list.map(r=>{const b=busy(r.id);const cur=v.r===r.id;return `<button class="item" data-act="setRoom" data-v="${r.id}" ${b?"disabled style='opacity:.45;cursor:default'":""}><span class="tile ${r.type==="Laboratoire"?"violet":r.type==="Salle informatique"?"blue":r.type.startsWith("Terrain")?"green":"teal"}">${svg("school")}</span><span class="grow"><b>${esc(r.nom)}${cur?(isTerrain(r)?" · actuel":" · actuelle"):""}</b><span>${b?"Occupée par "+esc(b.nom):esc(r.type)+(S.matieres.find(m=>m.salle===r.id&&m.id!==v.m)?" · réservée "+esc(S.matieres.find(m=>m.salle===r.id&&m.id!==v.m).code):"")+" · libre"}</span></span>${cur?`<span class="chip ok">✓</span>`:""}</button>`}).join("")||`<span class="small muted">${sport?"Aucun terrain. Ajoutez-en dans Saisie → Salles & terrains → + Terrain.":"Aucune salle. Ajoutez-en dans Saisie → Salles & terrains."}</span>`}</div>
   <button class="btn" data-act="close">Fermer</button>`)}
 
 /* ---------- Réglages ---------- */
@@ -1395,6 +1405,7 @@ document.addEventListener("click",async e=>{
       if(was===UI.affProf){delete a2[m]}else{a2[m]=UI.affProf;if(was&&prof(was))toast(cls(c).nom+" transférée de "+shortName(prof(was).nom))}afterAff();supToast(P0,before);break}
     case "affLevel":{const n=t.dataset.n,m=t.dataset.m,on=t.dataset.on==="1";const P0=prof(UI.affProf);const before=profLoadAff(P0.id);S.classes.filter(c=>c.niveau===n).forEach(c=>{const a2=S.aff[c.id]=S.aff[c.id]||{};if(on)a2[m]=UI.affProf;else if(a2[m]===UI.affProf)delete a2[m]});afterAff();supToast(P0,before);break}
     case "editSalle": sheetSalle(v);break;
+    case "newTerrain": UI.newT=true;sheetSalle(null);break;
     case "saveSalle":{const nom=document.getElementById("fs-nom").value.trim();if(!nom){toast("Donnez un nom à la salle");return}
       const o={nom,type:document.getElementById("fs-type").value,multi:document.getElementById("fs-multi").checked};let rid=v;
       if(v)Object.assign(salle(v),o);else{rid=uid();S.salles.push({id:rid,...o})}
@@ -1429,7 +1440,7 @@ document.addEventListener("click",async e=>{
     case "cell": cellTap(t.dataset.k);break;
     case "pickRoom": sheetRoom();break;
     case "repair":{snapshot("Avant réparation des conflits");const r=repairConflicts();save();render();toast(r.left?r.fixed+" cours déplacé(s), "+r.left+" conflit(s) à régler à la main":"Conflits réglés : "+r.fixed+" cours déplacé(s)");break}
-    case "setRoom":{const bk=blockKeys(UI.edtId,UI.sel.k);const it=(bk||[UI.sel.k]).flatMap(x=>itemsAt(UI.edtId,x));it.forEach(x=>x.r=v);save();closeSheet();render();toast("Salle changée : "+salleNom(v));break}
+    case "setRoom":{const bk=blockKeys(UI.edtId,UI.sel.k);const it=(bk||[UI.sel.k]).flatMap(x=>itemsAt(UI.edtId,x));it.forEach(x=>x.r=v);save();closeSheet();render();toast((isTerrain(salle(v))?"Terrain choisi : ":"Salle changée : ")+salleNom(v));break}
     case "maxAuto": sheetCtx.auto=true;profSheetInfo();break;
     case "cancelSel": UI.sel=null;render();break;
     case "clearCell": {const bk=blockKeys(UI.edtId,UI.sel.k);(bk||[UI.sel.k]).forEach(x=>{delete (S.sched[UI.edtId]||{})[x];delete (S.sched[UI.edtId]||{})[x+"/B"]})}UI.sel=null;save();render();toast("Cours retiré");break;
