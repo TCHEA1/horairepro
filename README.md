@@ -1,8 +1,8 @@
-# Kalanso
+# HorairePro
 
 **Les emplois du temps de tout votre établissement, générés en une minute et sans conflit.**
 
-Kalanso (« l'école », la maison où l'on apprend, en dioula) est une application mobile installable, pensée pour les collèges et lycées de Côte d'Ivoire. Elle aide les directeurs des études, censeurs et éducateurs à produire les emplois du temps de chaque classe et de chaque professeur.
+HorairePro est une application mobile installable, pensée pour les collèges et lycées de Côte d'Ivoire. Elle aide les directeurs des études, censeurs et éducateurs à produire les emplois du temps de chaque classe et de chaque professeur.
 
 ## Ce que fait l'application
 

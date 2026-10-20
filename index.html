@@ -3,17 +3,17 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<title>Kalanso</title>
-<meta name="description" content="Kalanso génère automatiquement les emplois du temps des classes et des professeurs des établissements de Côte d'Ivoire.">
-<meta name="theme-color" content="#176B4D">
+<title>HorairePro</title>
+<meta name="description" content="HorairePro génère automatiquement les emplois du temps des classes et des professeurs des établissements de Côte d'Ivoire.">
+<meta name="theme-color" content="#2747C9">
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="icon" href="icons/favicon.png" type="image/png">
 <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-title" content="Kalanso">
+<meta name="apple-mobile-web-app-title" content="HorairePro">
 <style>:root{padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}body{margin:0;font:14px system-ui,sans-serif}img{max-width:100%}[hidden]{display:none!important}</style>
-<script>window.KALANSO_STANDALONE=true</script>
+<script>window.HORAIREPRO_STANDALONE=true</script>
 </head>
 <body>
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -23,25 +23,25 @@
 <style>
 /* Layout: application mobile — barre du haut collante, contenu en cartes, navigation à 5 onglets en bas */
 :root{
-  --bg:#F2F5F1; --surface:#FFFFFF; --sunk:#E8EEE9; --ink:#14221C; --muted:#5A6A61; --line:#D7E0DA;
-  --accent:#176B4D; --accent-ink:#FFFFFF; --accent-soft:#DDEFE6; --warm:#D26D14; --warm-soft:#FBE9D8;
-  --danger:#B3261E; --danger-soft:#F9E1DF; --ok:#25774A;
-  --cs:62%; --cl:89%; --cell-ink:#14221C; --off:#E4E9E5;
+  --bg:#F3F5FB; --surface:#FFFFFF; --sunk:#E7EBF6; --ink:#121a33; --muted:#5B6585; --line:#D8DEEE;
+  --accent:#2747C9; --accent-ink:#FFFFFF; --accent-soft:#E0E6FB; --warm:#E8960C; --warm-soft:#FDF0D6;
+  --danger:#C42B3B; --danger-soft:#FBE2E5; --ok:#1F7A55;
+  --cs:72%; --cl:90%; --cell-ink:#121a33; --off:#E3E7F2;
   --f-display:"Bricolage Grotesque", "Trebuchet MS", system-ui, sans-serif;
   --f-body:"Figtree", system-ui, -apple-system, "Segoe UI", sans-serif;
   --f-mono:"JetBrains Mono", ui-monospace, Menlo, monospace;
   --r:14px;
 }
 @media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
-  --bg:#0E1512; --surface:#16201B; --sunk:#1C2822; --ink:#E5EEE9; --muted:#93A49A; --line:#2A3831;
-  --accent:#5CC398; --accent-ink:#06130D; --accent-soft:#1D3A2D; --warm:#F0A35E; --warm-soft:#3A2817;
-  --danger:#F2867E; --danger-soft:#3B1C1A; --ok:#6FD39C;
-  --cs:32%; --cl:25%; --cell-ink:#EEF4F0; --off:#121A16; color-scheme:dark}}
+  --bg:#0C1122; --surface:#141B32; --sunk:#1B2440; --ink:#E7EBF8; --muted:#97A1C2; --line:#28324F;
+  --accent:#7D95FF; --accent-ink:#0A1030; --accent-soft:#232E5C; --warm:#FFBE45; --warm-soft:#3A2D10;
+  --danger:#FF8B97; --danger-soft:#3D1A20; --ok:#6FD6A6;
+  --cs:38%; --cl:27%; --cell-ink:#F1F3FB; --off:#10162A; color-scheme:dark}}
 :root[data-theme="dark"]{
-  --bg:#0E1512; --surface:#16201B; --sunk:#1C2822; --ink:#E5EEE9; --muted:#93A49A; --line:#2A3831;
-  --accent:#5CC398; --accent-ink:#06130D; --accent-soft:#1D3A2D; --warm:#F0A35E; --warm-soft:#3A2817;
-  --danger:#F2867E; --danger-soft:#3B1C1A; --ok:#6FD39C;
-  --cs:32%; --cl:25%; --cell-ink:#EEF4F0; --off:#121A16; color-scheme:dark}
+  --bg:#0C1122; --surface:#141B32; --sunk:#1B2440; --ink:#E7EBF8; --muted:#97A1C2; --line:#28324F;
+  --accent:#7D95FF; --accent-ink:#0A1030; --accent-soft:#232E5C; --warm:#FFBE45; --warm-soft:#3A2D10;
+  --danger:#FF8B97; --danger-soft:#3D1A20; --ok:#6FD6A6;
+  --cs:38%; --cl:27%; --cell-ink:#F1F3FB; --off:#10162A; color-scheme:dark}
 *{box-sizing:border-box}
 body{background:var(--bg);color:var(--ink);font-family:var(--f-body);font-size:15px;line-height:1.45;-webkit-tap-highlight-color:transparent}
 body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset-top,0px);z-index:30;background:var(--accent)}
@@ -212,7 +212,7 @@ const uid=()=>Math.random().toString(36).slice(2,9);
 const esc=s=>String(s??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
 const nivL=id=>(NIV.find(n=>n.id===id)||{l:id}).l;
 
-const APP="Kalanso";
+const APP="HorairePro";
 function defaultEtab(){return {
   nom:"",sigle:"",type:"Collège",statut:"Privé laïc",code:"",dren:"",
   ministere:"MINISTÈRE DE L'ÉDUCATION NATIONALE, DE L'ALPHABÉTISATION ET DE L'ENSEIGNEMENT TECHNIQUE",
@@ -415,7 +415,7 @@ function vWelcome(){return `<div class="welcome"><div class="mark">${MARK}</div>
   <div style="display:flex;flex-direction:column;gap:10px"><h1>${APP}</h1><p>Les emplois du temps de tout votre établissement, classes et professeurs, générés en une minute et sans conflit.</p></div>
   <div style="display:flex;flex-direction:column;gap:10px"><button class="btn primary big block" data-act="wStart">Configurer mon établissement</button>
   <button class="btn big block" data-act="wSample">Découvrir avec un exemple</button></div>
-  <div class="gl">« Kalanso » signifie « l'école », la maison où l'on apprend, en dioula.</div></div>`}
+  <div class="gl">Conçu pour les collèges et lycées de Côte d'Ivoire : en-tête officiel, volumes horaires de la 6ème à la Terminale, export PDF.</div></div>`}
 
 /* ---------- Accueil ---------- */
 function vHome(){
@@ -760,7 +760,7 @@ function pdfPage(doc,kind,id,first){
 }
 function pdfTxt(s){return String(s??"").replace(/[’‘]/g,"'").replace(/[–—]/g,"-").replace(/[“”«»]/g,'"').replace(/œ/g,"oe").replace(/Œ/g,"OE").replace(/[^\x20-\xFF\n]/g,"")}
 function strip(s){return String(s).normalize("NFD").replace(/[̀-ͯ]/g,"")}
-const STANDALONE=!!window.KALANSO_STANDALONE;let installEvt=null;
+const STANDALONE=!!window.HORAIREPRO_STANDALONE;let installEvt=null;
 async function saveFile(filename,data,mime){
   filename=strip(filename).replace(/[^\w.-]+/g,"_");
   if(downloads){try{await downloads.save({filename,data});toast("Fichier enregistré")}catch(e){if(e?.code!=="declined")toast("Le fichier n'a pas pu être enregistré.")}return}

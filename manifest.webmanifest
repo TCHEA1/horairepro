@@ -1,14 +1,14 @@
 {
-  "name": "Kalanso — Emplois du temps",
-  "short_name": "Kalanso",
+  "name": "HorairePro — Emplois du temps",
+  "short_name": "HorairePro",
   "description": "Génère automatiquement les emplois du temps des classes et des professeurs des établissements de Côte d'Ivoire.",
   "lang": "fr",
   "start_url": "./",
   "scope": "./",
   "display": "standalone",
   "orientation": "any",
-  "background_color": "#F2F5F1",
-  "theme_color": "#176B4D",
+  "background_color": "#F3F5FB",
+  "theme_color": "#2747C9",
   "categories": ["education", "productivity"],
   "icons": [
     { "src": "icons/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
