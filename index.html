@@ -188,6 +188,7 @@ table.edt td.c .wk{font-style:normal;font-size:8.5px;font-weight:800;background:
 .cchip.on{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
 .cchip.taken{background:var(--sunk);color:var(--muted);border-style:dashed}
 .cchip small{font-size:10.5px;font-weight:600;opacity:.85}
+.topo{color:var(--danger);font-weight:700;font-style:italic}
 .ppband{display:flex;align-items:center;gap:12px;background:var(--accent-soft);border-radius:16px;padding:10px 12px}
 .ppband .grow span{display:block;font-size:11.5px;color:var(--accent);font-weight:700;text-transform:uppercase;letter-spacing:.05em}
 .ppband .grow b{display:block;font-size:15px}
@@ -403,6 +404,7 @@ function sampleState(){
   S.matieres.find(m=>m.id==="EPS").salle=S.salles[cl.length].id;
   S.matieres.find(m=>m.id==="TICE").salle=S.salles[cl.length+3].id;
   S.matieres.find(m=>m.id==="PC").salle=S.salles[cl.length+1].id;S.matieres.find(m=>m.id==="SVT").salle=S.salles[cl.length+2].id;
+  S.matieres.find(m=>m.id==="PC").labH=1;S.matieres.find(m=>m.id==="SVT").labH=1;
   const pr=[["KONAN Aya Rose","F",["FR"]],["N'GUESSAN Brou Désiré","M",["FR"]],["YAO Affoué Clarisse","F",["FR"]],
     ["KOUASSI Yao Firmin","M",["MATH"]],["DIABATÉ Moussa","M",["MATH"]],["KOFFI Amenan Esther","F",["MATH"]],
     ["TRAORÉ Mariam","F",["ANG"]],["GNAGNE Serge","M",["ANG"]],["BAMBA Awa","F",["LV2"]],
@@ -429,7 +431,7 @@ function migrate(x){const d=defaultState();for(const k in d) if(x[k]===undefined
     if(!x.matieres.find(m=>m.id==="TICE"))x.matieres.push({id:"TICE",code:"TICE",nom:"TICE (informatique)",h:235,bloc:false,matin:false,salle:""});
     const ap=x.matieres.find(m=>m.id==="AP");if(ap&&/Arts plastiques/.test(ap.nom))ap.nom="Dessin / Éducation musicale";x.gridV=3}
   x.classes.forEach(c=>{c.salle=c.salle||"";if(c.salle&&!x.salles.find(r=>r.id===c.salle)){let r=x.salles.find(r=>r.nom===c.salle);if(!r){r={id:uid(),nom:c.salle,type:"Classe",multi:false};x.salles.push(r)}c.salle=r.id}});
-  x.matieres.forEach(m=>{m.salle=m.salle||""});
+  x.matieres.forEach(m=>{m.salle=m.salle||"";if(m.labH===undefined)m.labH=(m.id==="PC"||m.id==="SVT")?1:""});
   {const pc=x.matieres.find(m=>m.id==="PC"),svt=x.matieres.find(m=>m.id==="SVT");
    if(pc&&svt&&pc.salle&&pc.salle===svt.salle){const lab=x.salles.find(r=>r.id===pc.salle);
      if(lab){if(/^Labo( 1| Sciences)?$/i.test(lab.nom))lab.nom="Labo PC";const nl={id:uid(),nom:"Labo SVT",type:lab.type||"Laboratoire",multi:false};x.salles.push(nl);svt.salle=nl.id;
@@ -502,7 +504,7 @@ const cls=id=>S.classes.find(c=>c.id===id);
 const salle=id=>id?S.salles.find(r=>r.id===id):null;
 const salleNom=id=>salle(id)?.nom||"";
 // Salles possibles pour un cours : la salle de la matière, puis les autres salles du même type, puis la salle de la classe
-function roomChoices(cid,mid){const m=mat(mid),c=cls(cid);const out=[];const add=id=>{if(id&&salle(id)&&!out.includes(id))out.push(id)};
+function roomChoices(cid,mid){const m=mid==="__none"?null:mat(mid),c=cls(cid);const out=[];const add=id=>{if(id&&salle(id)&&!out.includes(id))out.push(id)};
   if(m&&m.salle&&salle(m.salle)){add(m.salle);const t=salle(m.salle).type;const reserved=new Set(S.matieres.filter(o=>o.id!==mid&&o.salle).map(o=>o.salle));
     S.salles.filter(r=>r.type===t&&!r.multi&&!reserved.has(r.id)).forEach(r=>add(r.id))}
   add(c?.salle);return out.length?out:[""]}
@@ -557,7 +559,7 @@ function autoAssign(keep=true){
       const same=byNivMat[c.niveau+"|"+x.m]; let pick=null;
       if(same){const p=prof(same);if(p&&load[p.id]+x.h<=profMax(p)) pick=p}
       if(!pick){const ok=cands.filter(p=>load[p.id]+x.h<=profMax(p)).sort((p,q)=>load[p.id]/profMax(p)-load[q.id]/profMax(q));pick=ok[0]}
-      if(!pick){pick=cands.sort((p,q)=>load[p.id]-load[q.id])[0];warn++}
+      if(!pick){warn++;continue}
       a[x.m]=pick.id;load[pick.id]+=x.h;byNivMat[c.niveau+"|"+x.m]=pick.id;
     }}
   return warn;
@@ -570,8 +572,12 @@ function buildLessons(){
     for(const x of needOf(c)){const m=mat(x.m);const p=a[x.m]&&prof(a[x.m])?a[x.m]:null;const ch=[];
       const whole=Math.floor(x.h+1e-9),half=x.h-whole>=0.25;
       if(S.gen.bloc2&&m.bloc&&whole>=2){let r=whole;while(r>=2){ch.push(2);r-=2}if(r)ch.push(1)}else for(let i=0;i<whole;i++)ch.push(1);
-      const rooms=roomChoices(c.id,x.m);const r=rooms[0]||"";const n=ch.length+(half?1:0);ch.forEach(d=>L.push({c:c.id,m:x.m,p,d,n,r,rooms}));
-      if(half) L.push({c:c.id,m:x.m,p,d:1,n,r,rooms,half:true});}}
+      const rooms=roomChoices(c.id,x.m);const home=roomChoices(c.id,"__none");const n=ch.length+(half?1:0);
+      // Salle spéciale (labo…) seulement pour « labH » heures par semaine ; les autres heures dans la salle de la classe
+      const special=m.salle&&salle(m.salle);let labLeft=special?(m.labH===""||m.labH==null?Infinity:+m.labH):0;
+      const pick=dur=>{if(labLeft>1e-9){labLeft-=dur;return rooms}return home};
+      ch.forEach(d=>{const rs=pick(d);L.push({c:c.id,m:x.m,p,d,n,r:rs[0]||"",rooms:rs})});
+      if(half){const rs=pick(0.5);L.push({c:c.id,m:x.m,p,d:1,n,r:rs[0]||"",rooms:rs,half:true})}}}
   return L;
 }
 function generate(){
@@ -796,7 +802,7 @@ function vMats(){
   const showN=nivs.length?nivs:NIV.slice(0,4);
   return `<section class="card"><div class="sec-title"><h3>Matières</h3><button class="btn primary" data-act="editMat">+ Matière</button></div>
   <div class="list">${S.matieres.map(m=>`<button class="item" data-act="editMat" data-v="${m.id}"><span class="mat" style="${hcode(m.h)}">${esc(m.code)}</span><span class="grow"><b>${esc(m.nom)}</b><span>${[m.bloc?"Séances de 2 h":"Séances d'1 h",m.matin?"plutôt le matin":""].filter(Boolean).join(" · ")}</span></span><span class="chev">›</span></button>`).join("")}</div></section>
-  <section class="card"><h3>Volumes horaires par semaine</h3><p class="muted small" style="margin:0">Horaires officiels de la circulaire n°0311/MENA/CAB/DPFC du 1er septembre 2025, modifiables. Une heure = un créneau. <b>1,5</b> = <b>1h30</b> : 1 h chaque semaine + 1 h une semaine sur deux (semaine A ou B). Chaque matière garde ses propres heures. Les heures d'un professeur au-delà de ses heures dues comptent en heures supplémentaires.</p>
+  <section class="card"><div class="sec-title"><h3>Volumes horaires par semaine</h3><button class="btn" data-act="resetGrid">Horaires officiels</button></div><p class="muted small" style="margin:0">Horaires officiels de la circulaire n°0311/MENA/CAB/DPFC du 1er septembre 2025, modifiables. Une heure = un créneau. <b>1,5</b> = <b>1h30</b> : 1 h chaque semaine + 1 h une semaine sur deux (semaine A ou B). Chaque matière garde ses propres heures. Les heures d'un professeur au-delà de ses heures dues comptent en heures supplémentaires.</p>
   <div class="scroll"><table class="vol"><thead><tr><th>Matière</th>${showN.map(n=>`<th>${esc(n.l)}</th>`).join("")}</tr></thead>
   <tbody>${S.matieres.map(m=>`<tr><td><span class="mat" style="${hcode(m.h)}">${esc(m.code)}</span></td>${showN.map(n=>`<td><input type="number" min="0" max="12" step="0.5" inputmode="decimal" id="v-${n.id}-${m.id}" data-act="vol" data-n="${n.id}" data-m="${m.id}" value="${(S.grille[n.id]||{})[m.id]||""}"></td>`).join("")}</tr>`).join("")}</tbody>
   <tfoot><tr><td>Total</td>${showN.map(n=>`<td>${fmtH(Object.values(S.grille[n.id]||{}).reduce((a,b)=>a+(+b||0),0))}</td>`).join("")}</tr></tfoot></table></div></section>`;
@@ -838,7 +844,8 @@ function vAffProf(){
   return `<section class="card"><label class="f">Professeur<select id="aff-prof" data-act="affProf">${[...S.profs].sort((a,b)=>(a.mats[0]||"").localeCompare(b.mats[0]||"")||a.nom.localeCompare(b.nom)).map(p=>`<option value="${p.id}" ${p.id===P.id?"selected":""}>${esc(p.nom)} · ${p.mats.map(x=>mat(x)?.code).join(", ")}</option>`).join("")}</select></label>
   <div class="row"><span class="avatar tile ${tone(P.nom)}" style="border-radius:50%">${esc(initialsOf(P.nom))}</span><div class="grow"><b>${esc(P.nom)}</b><span class="small muted" style="display:block">${P.statut==="VACATAIRE"?"Vacataire":"Permanent"} · ${P.mats.map(x=>mat(x)?.code).join(", ")}</span></div></div>
   ${hoursGauge(P,load,PM)}
-  <span class="small muted">Touchez une classe pour la donner à ce professeur ou la lui retirer. Une classe grisée a déjà un autre professeur : la toucher la transfère.</span></section>
+  <span class="small muted">Touchez une classe pour la donner à ce professeur ou la lui retirer. Une classe grisée a déjà un autre professeur : la toucher la transfère.</span>
+  ${load?`<div id="clrzone"><button class="btn danger" data-act="affClearAsk">Retirer toutes ses classes</button></div>`:""}</section>
   <div class="cards">${P.mats.map(block).join("")}</div>`;
 }
 function vAffClasse(){
@@ -859,7 +866,7 @@ function vGen(){
   <p class="muted" style="margin:0">L'appli place chaque cours de chaque classe. Un professeur n'est jamais dans deux classes à la fois, et ses indisponibilités sont respectées.</p>
   <label class="check"><input type="checkbox" id="opt-bloc" data-act="optBloc" ${S.gen.bloc2?"checked":""}><span>Regrouper en séances de 2 heures les matières marquées « 2 h » (PC, SVT, Maths, EPS…)</span></label>
   <div class="small muted">Règles appliquées : une même matière une seule fois par jour dans une classe, matières principales le matin, peu de trous, journées équilibrées.</div>
-  ${ua?`<div class="banner"><span style="flex:1;min-width:200px"><b>${ua} cours sans professeur.</b> Ils seront placés quand même, sans nom de professeur.</span><button class="btn" data-act="autoAff">Affecter automatiquement</button></div>`:""}
+  ${ua?`<div class="banner"><span style="flex:1;min-width:200px"><b>${ua} cours sans professeur.</b> Ils seront placés dans l'emploi du temps de la classe avec la mention « à pourvoir », sans être donnés à un professeur. Choisissez vous-même les classes de chaque prof dans Saisie → Affectations.</span><button class="btn" data-act="autoAff">Affecter automatiquement</button></div>`:""}
   <button class="btn primary big block" data-act="runGen">Générer tous les emplois du temps</button></section>
   <section class="card"><div class="row"><span class="tile orange">${svg("users")}</span><div class="grow"><h3>Un professeur change ses jours ou ses heures ?</h3><span class="small muted">En cours d'année, sans tout refaire : seuls ses cours sont déplacés, vers des heures où la classe, le professeur et la salle sont libres.</span></div></div>
   <button class="btn primary block" data-act="openChange">Gérer un changement d'horaire</button></section>
@@ -903,7 +910,8 @@ function cellBody(items,kind,home){ // contenu d'une case : un cours, ou deux co
     const rm=v.r?` <span class="rm">${esc(salleNom(v.r))}</span>`:"";
     if(kind==="prof") return small?`<span class="hl"><b>${esc(c?.nom)}</b>${wk} ${esc(m?.code)}${rm}</span>`:`<b>${esc(c?.nom)}</b><span class="mr">${esc(m?.code)}${rm}</span>`;
     if(kind==="salle") return small?`<span class="hl"><b>${esc(c?.nom)}</b>${wk} ${esc(m?.code)}</span>`:`<b>${esc(c?.nom)}</b><span>${esc(m?.code)} · ${esc(shortName(p?.nom))}</span>`;
-    return small?`<span class="hl"><b>${esc(m?.code)}</b>${wk}${rm}<br><span>${esc(shortName(p?.nom))}</span></span>`:`<b>${esc(m?.code||"?")}${rm}</b><span>${esc(shortName(p?.nom))}</span>`};
+    const pn=p?esc(shortName(p.nom)):`<span class="topo">à pourvoir</span>`;
+    return small?`<span class="hl"><b>${esc(m?.code)}</b>${wk}${rm}<br><span>${pn}</span></span>`:`<b>${esc(m?.code||"?")}${rm}</b><span>${pn}</span>`};
   if(items.length===1&&!items[0].w) return one(items[0],false);
   const sorted=[...items].sort((x,y)=>(x.w||"").localeCompare(y.w||""));
   return sorted.map(v=>one(v,true)).join("")+(sorted.length===1?`<span class="hl muted">${sorted[0].w==="A"?"B":"A"} : libre</span>`:"");
@@ -1093,6 +1101,7 @@ function sheetMat(id){const m=id?mat(id):{code:"",nom:"",h:HUES[S.matieres.lengt
   <label class="check"><input type="checkbox" id="fx-bloc" ${m.bloc?"checked":""}><span>Séances de 2 heures d'affilée</span></label>
   <label class="check"><input type="checkbox" id="fx-matin" ${m.matin?"checked":""}><span>Placer plutôt le matin</span></label>
   <label class="f">Salle spéciale pour cette matière${salleSelect("fx-salle",m.salle||"","— Salle habituelle de la classe —")}</label>
+  <label class="f">Heures dans cette salle, par classe et par semaine<input id="fx-labh" type="number" min="0" step="0.5" inputmode="decimal" value="${m.labH===""||m.labH==null?"":m.labH}" placeholder="vide = toutes les heures"><span class="small muted" style="font-weight:500">Ex : 1 pour la PC = 1 h de TP au labo, les autres heures dans la salle de la classe. Le professeur change alors de salle dans la journée.</span></label>
   <div class="row">${id?`<button class="btn danger" data-act="delMat" data-v="${id}">Supprimer</button>`:""}<button class="btn grow" data-act="close">Annuler</button><button class="btn primary grow" data-act="saveMat" data-v="${id||""}">Enregistrer</button></div>`)}
 function sheetAddLesson(k){const c=cls(UI.edtId);const [d,s]=k.split("-").map(Number);
   const opts=needOf(c).map(x=>{const pl=placedCount(c.id,x.m);const pid=(S.aff[c.id]||{})[x.m];const ok=canPut(c.id,k,pid,roomFor(c.id,x.m));return {...x,pl,pid,ok}});
@@ -1218,8 +1227,8 @@ function pdfPage(doc,kind,id,first){
     doc.setTextColor(20);doc.setFontSize(7.4);doc.text(pdfTxt(ppVal),M+2.5,32.4,{maxWidth:48})}
   const N=nS();const body=[];let lookup,anyHalf=false;
   if(kind==="classe"){lookup=k=>{const it=itemsAt(id,k);if(!it.length)return null;
-    if(it.length===1&&!it[0].w){const v=it[0],m=mat(v.m);return {t:(m?.code||"")+(v.r?" · "+salleNom(v.r):"")+"\n"+shortName(prof(v.p)?.nom||""),h:m?.h}}
-    return {t:it.sort((a,b)=>a.w.localeCompare(b.w)).map(v=>"Sem. "+v.w+" : "+(mat(v.m)?.code||"")+" "+shortName(prof(v.p)?.nom||"")).join("\n")+(it.length===1?"\nSem. "+(it[0].w==="A"?"B":"A")+" : libre":"")+(it[0].r?"\n"+salleNom(it[0].r):""),h:mat(it[0].m)?.h,half:true}}}
+    if(it.length===1&&!it[0].w){const v=it[0],m=mat(v.m);return {t:(m?.code||"")+(v.r?" · "+salleNom(v.r):"")+"\n"+(v.p?shortName(prof(v.p)?.nom||""):"(à pourvoir)"),h:m?.h}}
+    return {t:it.sort((a,b)=>a.w.localeCompare(b.w)).map(v=>"Sem. "+v.w+" : "+(mat(v.m)?.code||"")+" "+(v.p?shortName(prof(v.p)?.nom||""):"(à pourvoir)")).join("\n")+(it.length===1?"\nSem. "+(it[0].w==="A"?"B":"A")+" : libre":"")+(it[0].r?"\n"+salleNom(it[0].r):""),h:mat(it[0].m)?.h,half:true}}}
   else{const pc=groupCells(profCells(id));lookup=k=>{const it=pc[k];if(!it)return null;
     if(it.length===1&&!it[0].w){const v=it[0],m=mat(v.m);return {t:(cls(v.c)?.nom||"")+"\n"+(m?.code||"")+(v.r?" · "+salleNom(v.r):""),h:m?.h}}
     return {t:it.sort((a,b)=>a.w.localeCompare(b.w)).map(v=>"Sem. "+v.w+" : "+(cls(v.c)?.nom||"")+" "+(mat(v.m)?.code||"")+(v.r?" · "+salleNom(v.r):"")).join("\n")+(it.length===1?"\nSem. "+(it[0].w==="A"?"B":"A")+" : libre":""),h:mat(it[0].m)?.h,half:true}}}
@@ -1309,6 +1318,9 @@ document.addEventListener("click",async e=>{
       for(const c in S.sched)for(const k in S.sched[c]) if(S.sched[c][k].p===v) S.sched[c][k].p=null;
       S.classes.forEach(c=>{if(c.pp===v)c.pp=null});save();render()});break;
     case "editMat": sheetMat(v);break;
+    case "affClearAsk": document.getElementById("clrzone").innerHTML=`<div class="row"><span class="small grow">Retirer toutes les classes de ce professeur ?</span><button class="btn danger" data-act="affClear">Oui, retirer</button></div>`;break;
+    case "affClear":{for(const c of S.classes){const a2=S.aff[c.id]||{};for(const m in a2) if(a2[m]===UI.affProf) delete a2[m]}afterAff();toast("Classes retirées. Cochez maintenant celles qu'il enseigne vraiment.");break}
+    case "resetGrid": confirmBox("Remettre les volumes horaires officiels de la circulaire 0311 ? Vos modifications de volumes seront remplacées.","Remettre",()=>{S.grille=JSON.parse(JSON.stringify(GRILLE_OFFICIELLE));save();render();toast("Horaires officiels rétablis. Relancez la génération.")});break;
     case "affMode": UI.affMode=v;render();break;
     case "affToggle":{const c=t.dataset.c,m=t.dataset.m;const a2=S.aff[c]=S.aff[c]||{};const was=a2[m];const P0=prof(UI.affProf);const before=profLoadAff(P0.id);
       if(was===UI.affProf){delete a2[m]}else{a2[m]=UI.affProf;if(was&&prof(was))toast(cls(c).nom+" transférée de "+shortName(prof(was).nom))}afterAff();supToast(P0,before);break}
@@ -1334,7 +1346,7 @@ document.addEventListener("click",async e=>{
     case "restore": confirmBox("Revenir à cette version des emplois du temps ? Les changements faits depuis seront annulés.","Restaurer",()=>restoreSnap(v));break;
     case "hue": sheetCtx.h=+v;document.querySelectorAll("#fx-sw button").forEach(b=>b.setAttribute("aria-pressed",b.dataset.v===v));break;
     case "saveMat":{const code=document.getElementById("fx-code").value.trim().toUpperCase();if(!code){toast("Saisissez un code court");return}
-      const o={code,nom:document.getElementById("fx-nom").value.trim()||code,h:sheetCtx.h,bloc:document.getElementById("fx-bloc").checked,matin:document.getElementById("fx-matin").checked,salle:document.getElementById("fx-salle").value};
+      const o={code,nom:document.getElementById("fx-nom").value.trim()||code,h:sheetCtx.h,bloc:document.getElementById("fx-bloc").checked,matin:document.getElementById("fx-matin").checked,salle:document.getElementById("fx-salle").value,labH:(v2=>v2===""?"":Math.max(0,parseFloat(v2.replace(",","."))||0))(document.getElementById("fx-labh").value.trim())};
       if(v)Object.assign(mat(v),o);else{if(S.matieres.some(m=>m.id===code)){toast("Ce code existe déjà");return}S.matieres.push({id:code,...o})}save();closeSheet();render();break}
     case "delMat": confirmBox("Supprimer cette matière de toutes les classes ?","Supprimer",()=>{S.matieres=S.matieres.filter(m=>m.id!==v);
       for(const n in S.grille) delete S.grille[n][v];for(const c in S.sched)for(const k in S.sched[c]) if(S.sched[c][k].m===v) delete S.sched[c][k];
@@ -1396,7 +1408,7 @@ function runGen(){
   if(!guard()) return;
   if(!S.classes.length){toast("Ajoutez d'abord des classes");return}
   openSheet(`<div class="spin"></div><h3 style="text-align:center">Génération en cours…</h3><p class="muted small" style="text-align:center;margin:0">L'appli essaie plusieurs combinaisons pour éviter tout conflit.</p>`);
-  setTimeout(()=>{if(unassignedCount()) autoAssign(true);const r=generate();closeSheet();UI.tab="gen";render();scrollTo(0,0);
+  setTimeout(()=>{const r=generate();closeSheet();UI.tab="gen";render();scrollTo(0,0);
     toast(r.miss?r.miss+" h restent à placer à la main":"Emplois du temps générés, sans conflit")},60);
 }
 
