@@ -430,6 +430,7 @@ function migrate(x){const d=defaultState();for(const k in d) if(x[k]===undefined
   x.etab={...defaultEtab(),...x.etab};
   x.profs.forEach(p=>{p.matricule=p.matricule||"";p.origine=p.origine||"";p.indispo=p.indispo||{};if(p.maxAuto===undefined)p.maxAuto=(+p.max===24)});
   x.salles=x.salles||[];x.history=x.history||[];x.decoup=x.decoup||{};
+  {const seen={};for(const c of x.classes){if(c.pp){if(seen[c.pp])c.pp=null;else seen[c.pp]=1}}}
   {let dropped=0;for(const cid in x.sched||{})for(const k of Object.keys(x.sched[cid])){if(x.sched[cid][k].w){delete x.sched[cid][k];dropped++}}if(dropped)x.gen.needRegen=true}setTimeout(()=>{if(S===x&&syncAff())save()},0);
   if(!x.gridV||x.gridV<3){x.grille=JSON.parse(JSON.stringify(GRILLE_OFFICIELLE));
     if(!x.matieres.find(m=>m.id==="TICE"))x.matieres.push({id:"TICE",code:"TICE",nom:"TICE (informatique)",h:235,bloc:false,matin:false,salle:""});
@@ -1086,13 +1087,22 @@ function toast(msg){document.querySelector(".toast")?.remove();const t=document.
 function confirmBox(msg,yesLabel,fn){openSheet(`<h3>${msg}</h3><div class="row"><button class="btn grow" data-act="close">Annuler</button><button class="btn danger grow" id="yesBtn">${yesLabel}</button></div>`);
   document.getElementById("yesBtn").onclick=()=>{closeSheet();fn()}}
 
+function ppSelect(c){const teach=new Set(Object.values(S.aff[c.id]||{}));const ppOf=pid=>S.classes.find(o=>o.id!==c.id&&o.pp===pid);
+  const opt=p=>{const o=ppOf(p.id);return `<option value="${p.id}" ${c.pp===p.id?"selected":""}>${esc(p.nom)}${o?" — déjà PP de "+esc(o.nom):""}</option>`};
+  const mine=S.profs.filter(p=>teach.has(p.id)),others=S.profs.filter(p=>!teach.has(p.id));
+  return `<select id="fc-pp"><option value="">— Aucun —</option>${mine.length?`<optgroup label="Professeurs de cette classe">${mine.map(opt).join("")}</optgroup>`:""}${others.length?`<optgroup label="Autres professeurs">${others.map(opt).join("")}</optgroup>`:""}</select>`}
+// Un seul PP par classe (champ unique) et un professeur PP d'une seule classe
+function enforcePP(keepCid){const seen={};const order=keepCid?[cls(keepCid),...S.classes.filter(c=>c.id!==keepCid)]:S.classes;let moved=null;
+  for(const c of order){if(!c||!c.pp)continue;if(!prof(c.pp)){c.pp=null;continue}if(seen[c.pp]){moved=c.nom;c.pp=null}else seen[c.pp]=c.id}return moved}
+function autoPP(){const used=new Set();for(const c of S.classes){const teach=[...new Set(Object.values(S.aff[c.id]||{}))].filter(pid=>prof(pid)&&!used.has(pid));
+  if(c.pp&&teach.includes(c.pp)){used.add(c.pp);continue}c.pp=teach[0]||null;if(c.pp)used.add(c.pp)}}
 function sheetClass(id){const c=id?cls(id):{id:null,nom:"",niveau:"6e",effectif:"",pp:""};
   openSheet(`<h3>${id?"Modifier la classe":"Nouvelle classe"}</h3>
   <div class="grid2"><label class="f">Nom<input id="fc-nom" value="${esc(c.nom)}" placeholder="ex : 6è1"></label>
   <label class="f">Niveau<select id="fc-niv">${NIV.map(n=>`<option value="${n.id}" ${c.niveau===n.id?"selected":""}>${n.l}</option>`).join("")}</select></label>
   <label class="f">Effectif<input id="fc-eff" type="number" inputmode="numeric" value="${esc(c.effectif)}"></label>
   <label class="f">Salle de la classe${salleSelect("fc-salle",c.salle||"","— Aucune —")}</label>
-  <label class="f">Professeur principal<select id="fc-pp"><option value="">—</option>${S.profs.map(p=>`<option value="${p.id}" ${c.pp===p.id?"selected":""}>${esc(p.nom)}</option>`).join("")}</select></label></div>
+  <label class="f">Professeur principal${ppSelect(c)}<span class="small muted" style="font-weight:500">Un seul professeur principal par classe, et un professeur n'est principal que d'une seule classe.</span></label></div>
   <div class="row">${id?`<button class="btn danger" data-act="delClass" data-v="${id}">Supprimer</button>`:""}<button class="btn grow" data-act="close">Annuler</button><button class="btn primary grow" data-act="saveClass" data-v="${id||""}">Enregistrer</button></div>`)}
 function sheetMany(){openSheet(`<h3>Ajouter plusieurs classes</h3>
   <div class="grid2"><label class="f">Niveau<select id="fm-niv">${NIV.map(n=>`<option value="${n.id}">${n.l}</option>`).join("")}</select></label>
@@ -1347,7 +1357,7 @@ document.addEventListener("click",async e=>{
     case "goStep": if(v==="set"){UI.tab="set"} else if(v==="gen"){UI.tab="gen"} else {UI.tab="data";UI.sub=v} render();scrollTo(0,0);break;
     case "close": closeSheet();break;
     case "clearSample": confirmBox("Effacer les données d'exemple et partir d'un établissement vide ?","Effacer",()=>{const keep=S.etab;S=keepLic(defaultState());S.etab={...S.etab,annee:keep.annee};save();loadLicence();render();toast("Prêt. Commencez par les réglages de l'établissement.")});break;
-    case "loadSample": confirmBox("Remplacer toutes vos données par l'exemple ?","Remplacer",()=>{S=keepLic(sampleState());autoAssign();generate();render();toast("Exemple rechargé")});break;
+    case "loadSample": confirmBox("Remplacer toutes vos données par l'exemple ?","Remplacer",()=>{S=keepLic(sampleState());autoAssign();autoPP();generate();render();toast("Exemple rechargé")});break;
     case "resetAll": confirmBox("Tout effacer ? Classes, professeurs et emplois du temps seront supprimés.","Tout effacer",()=>{S=keepLic(defaultState());save();render();loadLicence();toast("Données effacées")});break;
     case "runGen": runGen();break;
     case "autoAff":{const w=autoAssign(true);syncAff();save();render();toast(w?w+" cours restent sans professeur adapté":"Affectations terminées");break}
@@ -1355,7 +1365,8 @@ document.addEventListener("click",async e=>{
     case "addMany": sheetMany();break;
     case "saveClass":{const nom=document.getElementById("fc-nom").value.trim();if(!nom){toast("Donnez un nom à la classe");return}
       const o={nom,niveau:document.getElementById("fc-niv").value,effectif:+document.getElementById("fc-eff").value||0,salle:document.getElementById("fc-salle").value,pp:document.getElementById("fc-pp").value||null};
-      if(v){Object.assign(cls(v),o)}else S.classes.push({id:uid(),...o});S.exemple=false;save();closeSheet();render();break}
+      let cid=v;if(v){Object.assign(cls(v),o)}else{cid=uid();S.classes.push({id:cid,...o})}
+      {const lost=enforcePP(cid);if(lost)toast(prof(o.pp)?.nom+" est maintenant PP de "+o.nom+" (retiré de "+lost+")")}S.exemple=false;save();closeSheet();render();break}
     case "saveMany":{const niv=document.getElementById("fm-niv").value,n=Math.min(20,+document.getElementById("fm-n").value||1),eff=+document.getElementById("fm-eff").value||0;
       const p=classPrefix(niv);const ex=S.classes.filter(c=>c.niveau===niv).length;
       for(let i=0;i<n;i++) S.classes.push({id:uid(),nom:p+(n>1||ex?(p.includes(" ")?" ":"")+(ex+i+1):""),niveau:niv,effectif:eff,pp:null});
@@ -1440,7 +1451,7 @@ document.addEventListener("click",async e=>{
     case "install": if(installEvt){installEvt.prompt();installEvt.userChoice.finally(()=>{installEvt=null;render()})}break;
     case "delLogo": S.etab.logo="";save();render();break;
     case "wStart": UI.welcome=false;S=keepLic(defaultState());save();loadLicence();UI.tab="set";render();toast("Renseignez d'abord votre établissement");break;
-    case "wSample": UI.welcome=false;S=keepLic(sampleState());autoAssign();generate();render();break;
+    case "wSample": UI.welcome=false;S=keepLic(sampleState());autoAssign();autoPP();generate();render();break;
     case "importJson": document.getElementById("fileIn").click();break;
   }
 });
