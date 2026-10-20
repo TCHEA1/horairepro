@@ -466,6 +466,8 @@ const API_URL="https://horairepro-api.onrender.com";const PKEY="horairepro-paiem
 const PUBKEY={"kty":"EC","crv":"P-256","x":"AtByO7j6hC8Y4HZPhoVdrfmeH3o3D9KMUYUG4G6PB1c","y":"6cuVoRgpOdhG954iiemfJnfqv9YRRrKnibDZTi8R-vM"};
 // Clé du service de paiement en ligne (licences délivrées automatiquement après un paiement CinetPay)
 const PUBKEY_PAY={"kty":"EC","crv":"P-256","x":"PysCcLcllcvXbDYN-74L2OqYjnhzU7uNeEXmfaTRlfg","y":"CiE0h0nhHF6JvkW74T5y-2ue-UuJ61OV22qyIwN_Tdw"};
+// Nouvelle clé admin (octobre 2026) ; l'ancienne reste acceptée pour les codes déjà donnés
+const PUBKEY_ADMIN2={"kty":"EC","crv":"P-256","x":"4sWJLKqEranl1xec_1aphS6W5pHYMh6zuVdx7ofZMdQ","y":"m6F31oKx7uj7ftSbj8eEc3pcvvXfC2YUcMakTZ9d7bw"};
 const TRIAL_DAYS=30,LKEY="horairepro-licence",IKEY="horairepro-install";
 const LIC={code:"",data:null,ok:false};
 const today=()=>{const d=new Date();return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0")};
@@ -476,7 +478,7 @@ async function verifyCode(raw){
   const code=String(raw||"").replace(/\s+/g,"");const m=code.match(/^HP-([A-Za-z0-9_-]+)\.([A-Za-z0-9_-]+)$/);
   if(!m) return {ok:false,err:"Ce code n'a pas le bon format. Il commence par HP-"};
   try{const pay=b64uDec(m[1]),sig=b64uDec(m[2]);
-    let good=false;for(const jwk of [PUBKEY,PUBKEY_PAY]){const key=await crypto.subtle.importKey("jwk",jwk,{name:"ECDSA",namedCurve:"P-256"},false,["verify"]);if(await crypto.subtle.verify({name:"ECDSA",hash:"SHA-256"},key,sig,pay)){good=true;break}}
+    let good=false;for(const jwk of [PUBKEY,PUBKEY_ADMIN2,PUBKEY_PAY]){const key=await crypto.subtle.importKey("jwk",jwk,{name:"ECDSA",namedCurve:"P-256"},false,["verify"]);if(await crypto.subtle.verify({name:"ECDSA",hash:"SHA-256"},key,sig,pay)){good=true;break}}
     if(!good) return {ok:false,err:"Ce code n'est pas valide. Vérifiez qu'il a été copié en entier."};
     return {ok:true,code,data:JSON.parse(new TextDecoder().decode(pay))};
   }catch(e){return {ok:false,err:"Ce code n'a pas pu être vérifié."}}
