@@ -42,7 +42,7 @@ L'application s'adapte toute seule : version mobile sur téléphone, version ord
 
 ## Paiement en ligne (CinetPay)
 
-Le service `api/` (Render, Node, gratuit) crée le paiement CinetPay, vérifie qu'il est accepté puis renvoie une licence signée : l'appli s'active toute seule. Variables à renseigner dans Render : `CINETPAY_APIKEY`, `CINETPAY_SITE_ID`, `LICENCE_PRIVATE_JWK`.
+Le service `api/` (Render, Node, gratuit) crée le paiement CinetPay, vérifie qu'il est accepté puis renvoie une licence signée : l'appli s'active toute seule. Variables à renseigner dans Render : `CINETPAY_APIKEY`, `CINETPAY_SITE_ID`, `LICENCE_PRIVATE_JWK` (clé dédiée au service de paiement, reconnue par l’appli et l’admin).
 
 ## Licences (abonnement annuel)
 

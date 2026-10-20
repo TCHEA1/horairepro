@@ -109,6 +109,7 @@ nav.tabs button[aria-current="true"] .pill{background:var(--accent-soft)}
 <script>
 /* ============ HorairePro Admin : licences des établissements ============ */
 const KEY="horairepro-admin-v1";
+const PUBKEY_PAY={"kty":"EC","crv":"P-256","x":"PysCcLcllcvXbDYN-74L2OqYjnhzU7uNeEXmfaTRlfg","y":"CiE0h0nhHF6JvkW74T5y-2ue-UuJ61OV22qyIwN_Tdw"}; // clé du service de paiement en ligne
 const APP_URL="https://horairepro.onrender.com/";
 const PAY=["Orange Money","MTN MoMo","Moov Money","Wave","Espèces","Virement bancaire"];
 const ICON={
@@ -156,7 +157,8 @@ async function makeCode(n,e,t,o){const data={v:1,n,e,i:today(),id:uid(),t};if(o)
   const sig=await crypto.subtle.sign({name:"ECDSA",hash:"SHA-256"},PRIV,pay);return {code:"HP-"+b64u(pay)+"."+b64u(sig),data}}
 async function checkCode(raw){const code=String(raw||"").replace(/\s+/g,"");const m=code.match(/^HP-([A-Za-z0-9_-]+)\.([A-Za-z0-9_-]+)$/);
   if(!m) return {ok:false,err:"Format incorrect : un code commence par HP-"};
-  try{const pay=b64uDec(m[1]);const good=await crypto.subtle.verify({name:"ECDSA",hash:"SHA-256"},PUB,b64uDec(m[2]),pay);
+  try{const pay=b64uDec(m[1]);let good=await crypto.subtle.verify({name:"ECDSA",hash:"SHA-256"},PUB,b64uDec(m[2]),pay);
+    if(!good){const k2=await crypto.subtle.importKey("jwk",PUBKEY_PAY,{name:"ECDSA",namedCurve:"P-256"},false,["verify"]);good=await crypto.subtle.verify({name:"ECDSA",hash:"SHA-256"},k2,b64uDec(m[2]),pay)}
     const data=JSON.parse(new TextDecoder().decode(pay));return {ok:good,data,err:good?"":"Signature invalide : ce code n'a pas été créé par votre admin."}}
   catch(e){return {ok:false,err:"Code illisible."}}}
 const lastLic=c=>c.lic.length?c.lic[c.lic.length-1]:null;
