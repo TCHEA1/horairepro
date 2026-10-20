@@ -155,7 +155,8 @@ table.edt td.c.sel{border-color:var(--warm);box-shadow:0 0 0 3px var(--warm-soft
 table.edt td.c.drop{border-style:dashed;border-color:var(--accent);background-color:color-mix(in srgb,var(--accent-soft) 60%,var(--sunk))}
 table.edt td.c.f.drop{background:hsl(var(--h) var(--cs) var(--cl))}
 table.edt td.c.no{opacity:.32}
-table.edt td.c .rm{display:inline-block;margin-top:2px;font-size:9.5px;font-weight:700;padding:1px 6px;border-radius:6px;background:rgb(255 255 255 / .55);color:var(--cell-ink);opacity:1;max-width:100%}
+table.edt td.c .rm{display:inline-block;margin-left:2px;vertical-align:1px;white-space:nowrap;font-size:9.5px;font-weight:700;padding:1px 6px;border-radius:6px;background:rgb(255 255 255 / .55);color:var(--cell-ink);opacity:1;max-width:100%}
+table.edt td.c span.mr{opacity:1;font-weight:600}
 table.edt td.c b{display:block;font-size:12.5px;font-weight:800;line-height:1.15}
 table.edt td.c span{display:block;font-size:10px;opacity:.8;line-height:1.15;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 table.edt td.brk{font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);text-align:center;padding:3px;background:none}
@@ -758,13 +759,13 @@ function gridHTML(kind,id){
       if(isOff(d,s)){h+=`<td class="c off" title="Pas de cours"></td>`;continue}
       if(kind==="classe"){const v=(S.sched[id]||{})[k];const home=cls(id)?.salle;
         const sel=UI.sel&&UI.sel.k===k;let st="";if(UI.sel&&!sel){const r=moveCheck(id,UI.sel.k,k);st=r===true?"drop":"no"}
-        if(v){const m=mat(v.m);const p=prof(v.p);h+=`<td class="c f ${sel?"sel":""} ${st}" style="${hcode(m?.h||0)}" data-act="cell" data-k="${k}"><b>${esc(m?.code||"?")}</b><span>${esc(shortName(p?.nom))}</span>${v.r&&v.r!==home?`<span class="rm">${esc(salleNom(v.r))}</span>`:""}</td>`}
+        if(v){const m=mat(v.m);const p=prof(v.p);h+=`<td class="c f ${sel?"sel":""} ${st}" style="${hcode(m?.h||0)}" data-act="cell" data-k="${k}"><b>${esc(m?.code||"?")}${v.r?` <span class="rm">${esc(salleNom(v.r))}</span>`:""}</b><span>${esc(shortName(p?.nom))}</span></td>`}
         else h+=`<td class="c ${st}" data-act="cell" data-k="${k}" aria-label="Case libre"></td>`;
       }else if(kind==="salle"){const occ=S.classes.map(c=>({c,v:(S.sched[c.id]||{})[k]})).filter(x=>x.v&&x.v.r===id);
         if(occ.length){const m=mat(occ[0].v.m);h+=`<td class="c f" style="${hcode(m?.h||0)}" data-act="goClass" data-v="${occ[0].c.id}"><b>${esc(occ.map(x=>x.c.nom).join(" + "))}</b><span>${esc(m?.code)} · ${esc(shortName(prof(occ[0].v.p)?.nom))}</span></td>`}
         else h+=`<td class="c" style="cursor:default"></td>`;
       }else{const v=pc[k];
-        if(v){const m=mat(v.m),c=cls(v.c);h+=`<td class="c f" style="${hcode(m?.h||0)}" data-act="goClass" data-v="${v.c}"><b>${esc(c?.nom)}</b><span>${esc(m?.code)}</span>${v.r?`<span class="rm">${esc(salleNom(v.r))}</span>`:""}</td>`}
+        if(v){const m=mat(v.m),c=cls(v.c);h+=`<td class="c f" style="${hcode(m?.h||0)}" data-act="goClass" data-v="${v.c}"><b>${esc(c?.nom)}</b><span class="mr">${esc(m?.code)}${v.r?` <span class="rm">${esc(salleNom(v.r))}</span>`:""}</span></td>`}
         else h+=`<td class="c" style="cursor:default"></td>`;}
     }h+=`</tr>`}
   return h+`</tbody></table></div>`;
@@ -1028,8 +1029,8 @@ function pdfPage(doc,kind,id,first){
   doc.setFont("helvetica","bold");doc.setFontSize(10.5);doc.setTextColor(...ACC);doc.text(pdfTxt(title),W/2,29.5,{align:"center"});
   doc.setTextColor(20);doc.setFont("helvetica","normal");doc.setFontSize(6.8);doc.text(pdfTxt(info),W/2,33.8,{align:"center",maxWidth:W-2*M});
   const N=nS();const body=[];let lookup;
-  if(kind==="classe"){const home=cls(id)?.salle;lookup=k=>{const v=(S.sched[id]||{})[k];if(!v)return null;const m=mat(v.m);return {t:(m?.code||"")+"\n"+shortName(prof(v.p)?.nom||"")+(v.r&&v.r!==home?"\n"+salleNom(v.r):""),h:m?.h}}}
-  else{const pc=Object.fromEntries(profCells(id).map(x=>[x.k,x]));lookup=k=>{const v=pc[k];if(!v)return null;const m=mat(v.m);return {t:(cls(v.c)?.nom||"")+" · "+(m?.code||"")+(v.r?"\n"+salleNom(v.r):""),h:m?.h}}}
+  if(kind==="classe"){const home=cls(id)?.salle;lookup=k=>{const v=(S.sched[id]||{})[k];if(!v)return null;const m=mat(v.m);return {t:(m?.code||"")+(v.r?" · "+salleNom(v.r):"")+"\n"+shortName(prof(v.p)?.nom||""),h:m?.h}}}
+  else{const pc=Object.fromEntries(profCells(id).map(x=>[x.k,x]));lookup=k=>{const v=pc[k];if(!v)return null;const m=mat(v.m);return {t:(cls(v.c)?.nom||"")+"\n"+(m?.code||"")+(v.r?" · "+salleNom(v.r):""),h:m?.h}}}
   for(let s=0;s<N;s++){const bl=breakLabel(s);
     if(bl) body.push([{content:pdfTxt(bl.toUpperCase()),colSpan:6,styles:{halign:"center",fontSize:5,textColor:120,fillColor:[244,247,245],cellPadding:0.5,minCellHeight:3.2}}]);
     const cr=S.creneaux[s];const row=[cr.debut+"\n"+cr.fin];
