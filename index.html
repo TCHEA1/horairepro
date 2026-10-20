@@ -382,11 +382,11 @@ function sampleState(){
     chefNom:"M. KOFFI Exemple",etudesNom:"Mme YAO Exemple",devise:"Bâtir l'avenir par le savoir",applic:"05/10/2026",logo:LOGO_EX};
   const cl=[["6è1","6e",62],["6è2","6e",60],["5è1","5e",58],["5è2","5e",57],["4è1","4e",55],["4è2","4e",54],["3è1","3e",61],["3è2","3e",59],["2nde C","2ndeC",48],["1ère D","1reD",45],["Tle D","TleD",42]];
   S.salles=cl.map((_,i)=>({id:uid(),nom:"Salle "+(i+1),type:"Classe",multi:false}));
-  S.salles.push({id:uid(),nom:"Terrain de sport",type:"Terrain / Plateau EPS",multi:true},{id:uid(),nom:"Labo 1",type:"Laboratoire",multi:false},{id:uid(),nom:"Salle informatique",type:"Salle informatique",multi:false});
+  S.salles.push({id:uid(),nom:"Terrain de sport",type:"Terrain / Plateau EPS",multi:true},{id:uid(),nom:"Labo PC",type:"Laboratoire",multi:false},{id:uid(),nom:"Labo SVT",type:"Laboratoire",multi:false},{id:uid(),nom:"Salle informatique",type:"Salle informatique",multi:false});
   S.classes=cl.map(([nom,niveau,effectif],i)=>({id:uid(),nom,niveau,effectif,pp:null,salle:S.salles[i].id}));
   S.matieres.find(m=>m.id==="EPS").salle=S.salles[cl.length].id;
-  S.matieres.find(m=>m.id==="TICE").salle=S.salles[cl.length+2].id;
-  S.matieres.find(m=>m.id==="PC").salle=S.salles[cl.length+1].id;S.matieres.find(m=>m.id==="SVT").salle=S.salles[cl.length+1].id;
+  S.matieres.find(m=>m.id==="TICE").salle=S.salles[cl.length+3].id;
+  S.matieres.find(m=>m.id==="PC").salle=S.salles[cl.length+1].id;S.matieres.find(m=>m.id==="SVT").salle=S.salles[cl.length+2].id;
   const pr=[["KONAN Aya Rose","F",["FR"]],["N'GUESSAN Brou Désiré","M",["FR"]],["YAO Affoué Clarisse","F",["FR"]],
     ["KOUASSI Yao Firmin","M",["MATH"]],["DIABATÉ Moussa","M",["MATH"]],["KOFFI Amenan Esther","F",["MATH"]],
     ["TRAORÉ Mariam","F",["ANG"]],["GNAGNE Serge","M",["ANG"]],["BAMBA Awa","F",["LV2"]],
@@ -414,6 +414,10 @@ function migrate(x){const d=defaultState();for(const k in d) if(x[k]===undefined
     const ap=x.matieres.find(m=>m.id==="AP");if(ap&&/Arts plastiques/.test(ap.nom))ap.nom="Dessin / Éducation musicale";x.gridV=3}
   x.classes.forEach(c=>{c.salle=c.salle||"";if(c.salle&&!x.salles.find(r=>r.id===c.salle)){let r=x.salles.find(r=>r.nom===c.salle);if(!r){r={id:uid(),nom:c.salle,type:"Classe",multi:false};x.salles.push(r)}c.salle=r.id}});
   x.matieres.forEach(m=>{m.salle=m.salle||""});
+  {const pc=x.matieres.find(m=>m.id==="PC"),svt=x.matieres.find(m=>m.id==="SVT");
+   if(pc&&svt&&pc.salle&&pc.salle===svt.salle){const lab=x.salles.find(r=>r.id===pc.salle);
+     if(lab){if(/^Labo( 1| Sciences)?$/i.test(lab.nom))lab.nom="Labo PC";const nl={id:uid(),nom:"Labo SVT",type:lab.type||"Laboratoire",multi:false};x.salles.push(nl);svt.salle=nl.id;
+       for(const cid in x.sched)for(const k in x.sched[cid]){const v=x.sched[cid][k];if(v.m==="SVT"&&v.r===lab.id)v.r=nl.id}}}}
   for(const cid in x.sched)for(const k in x.sched[cid]){const v=x.sched[cid][k];if(v.r===undefined){const c=x.classes.find(c=>c.id===cid),m=x.matieres.find(m=>m.id===v.m);v.r=(m&&m.salle)||(c&&c.salle)||""}}
   return x}
 
@@ -483,7 +487,8 @@ const salle=id=>id?S.salles.find(r=>r.id===id):null;
 const salleNom=id=>salle(id)?.nom||"";
 // Salles possibles pour un cours : la salle de la matière, puis les autres salles du même type, puis la salle de la classe
 function roomChoices(cid,mid){const m=mat(mid),c=cls(cid);const out=[];const add=id=>{if(id&&salle(id)&&!out.includes(id))out.push(id)};
-  if(m&&m.salle&&salle(m.salle)){add(m.salle);const t=salle(m.salle).type;S.salles.filter(r=>r.type===t&&!r.multi).forEach(r=>add(r.id))}
+  if(m&&m.salle&&salle(m.salle)){add(m.salle);const t=salle(m.salle).type;const reserved=new Set(S.matieres.filter(o=>o.id!==mid&&o.salle).map(o=>o.salle));
+    S.salles.filter(r=>r.type===t&&!r.multi&&!reserved.has(r.id)).forEach(r=>add(r.id))}
   add(c?.salle);return out.length?out:[""]}
 function roomFor(cid,mid){const m=mat(mid),c=cls(cid);return (m&&m.salle&&salle(m.salle)?m.salle:"")||(c&&c.salle&&salle(c.salle)?c.salle:"")||""}
 // Semaine A / B : une heure partagée entre deux cours qui alternent d'une semaine sur l'autre
@@ -750,14 +755,15 @@ function vSalles(){
   const use={};for(const c of S.classes)for(const v of Object.values(S.sched[c.id]||{})) if(v.r) use[v.r]=(use[v.r]||0)+W(v);
   const tileOf=t=>t==="Laboratoire"?"violet":t==="Salle informatique"?"blue":t.startsWith("Terrain")?"green":t==="Classe"?"teal":"orange";
   return `<section class="card"><div class="sec-title"><h3>${S.salles.length} salles</h3><div class="row"><button class="btn" data-act="autoSalles">+ Une par classe</button><button class="btn primary" data-act="editSalle">+ Salle</button></div></div>
-  ${S.salles.length?`<div class="list">${S.salles.map(r=>{const who=[...S.classes.filter(c=>c.salle===r.id).map(c=>c.nom),...S.matieres.filter(m=>m.salle===r.id).map(m=>m.code)];
+  ${S.salles.length?`<div class="list">${S.salles.map(r=>{const who=[...S.classes.filter(c=>c.salle===r.id).map(c=>c.nom),...S.matieres.filter(m=>m.salle===r.id).map(m=>"réservée "+m.code)];
     return `<button class="item" data-act="editSalle" data-v="${r.id}"><span class="tile ${tileOf(r.type)}">${svg("school")}</span><span class="grow"><b>${esc(r.nom)}</b><span>${esc(r.type)}${who.length?" · "+esc(who.join(", ")):""}${r.multi?" · plusieurs classes à la fois":""}</span></span><span class="chip">${fmtH(use[r.id]||0)}</span></button>`}).join("")}</div>`
   :`<div class="empty">Aucune salle. Ajoutez vos salles de classe, laboratoires, salle informatique, terrain de sport…<button class="btn primary" data-act="autoSalles">Créer une salle par classe</button></div>`}</section>
-  <div class="tip"><span class="tile green" style="width:36px;height:36px">${svg("bulb")}</span><div><b>Comment sont choisies les salles ?</b>Chaque classe a sa salle. Une matière peut avoir une salle spéciale (ex : PC au Labo, EPS au terrain). Deux classes ne sont jamais dans la même salle en même temps, sauf si la salle accepte plusieurs classes.</div></div>`}
+  <div class="tip"><span class="tile green" style="width:36px;height:36px">${svg("bulb")}</span><div><b>Comment sont choisies les salles ?</b>Chaque classe a sa salle. Une salle peut être réservée à une matière (ex : Labo PC pour la PC, Labo SVT pour la SVT, terrain pour l’EPS). Deux classes ne sont jamais dans la même salle en même temps, sauf si la salle accepte plusieurs classes.</div></div>`}
 function sheetSalle(id){const r=id?salle(id):{nom:"",type:"Classe",multi:false};
   openSheet(`<h3>${id?"Modifier la salle":"Nouvelle salle"}</h3>
   <div class="grid2"><label class="f">Nom<input id="fs-nom" value="${esc(r.nom)}" placeholder="ex : Salle 12, Labo 1, Bât. B"></label>
   <label class="f">Type<select id="fs-type">${STYPES.map(t=>`<option ${r.type===t?"selected":""}>${t}</option>`).join("")}</select></label></div>
+  <label class="f">Réservée à la matière<select id="fs-mat"><option value="">— Aucune (salle libre pour tous) —</option>${S.matieres.map(m=>`<option value="${m.id}" ${id&&m.salle===id?"selected":""}>${esc(m.nom)}</option>`).join("")}</select><span class="small muted" style="font-weight:500">Ex : Labo PC pour Physique-Chimie, Labo SVT pour SVT. Les cours de cette matière y vont en priorité, et les autres matières ne l'utilisent pas.</span></label>
   <label class="check"><input type="checkbox" id="fs-multi" ${r.multi?"checked":""}><span>Peut accueillir plusieurs classes en même temps (terrain de sport, cour…)</span></label>
   <div class="row">${id?`<button class="btn danger" data-act="delSalle" data-v="${id}">Supprimer</button>`:""}<button class="btn grow" data-act="close">Annuler</button><button class="btn primary grow" data-act="saveSalle" data-v="${id||""}">Enregistrer</button></div>`)}
 function salleSelect(idName,cur,empty){return `<select id="${idName}"><option value="">${empty}</option>${S.salles.map(r=>`<option value="${r.id}" ${cur===r.id?"selected":""}>${esc(r.nom)}</option>`).join("")}</select>`}
@@ -933,7 +939,7 @@ function vActionBar(){const it=itemsAt(UI.edtId,UI.sel.k);const v=it[0];const m=
 function sheetRoom(){const cid=UI.edtId,k=UI.sel.k;const it=itemsAt(cid,k);if(!it.length)return;const v=it[0];const c=cls(cid);
   const busy=rid=>{const r=salle(rid);if(!r||r.multi)return null;const mk=MASK(v);for(const o of S.classes){if(o.id===cid)continue;for(const x of itemsAt(o.id,k)) if(x.r===rid&&(MASK(x)&mk)) return o}return null};
   openSheet(`<h3>Salle du cours</h3><p class="small muted" style="margin:0">${esc(c.nom)} · ${esc(mat(v.m)?.nom)} · ${keyLbl(k)}. Ce choix ne change que ce cours : le professeur peut être au labo à une heure et dans une autre salle à une autre heure.</p>
-  <div class="list">${S.salles.map(r=>{const b=busy(r.id);const cur=v.r===r.id;return `<button class="item" data-act="setRoom" data-v="${r.id}" ${b?"disabled style='opacity:.45;cursor:default'":""}><span class="tile ${r.type==="Laboratoire"?"violet":r.type==="Salle informatique"?"blue":r.type.startsWith("Terrain")?"green":"teal"}">${svg("school")}</span><span class="grow"><b>${esc(r.nom)}${cur?" · actuelle":""}</b><span>${b?"Occupée par "+esc(b.nom):esc(r.type)+" · libre"}</span></span>${cur?`<span class="chip ok">✓</span>`:""}</button>`}).join("")||`<span class="small muted">Aucune salle. Ajoutez-en dans Saisie → Salles.</span>`}</div>
+  <div class="list">${S.salles.map(r=>{const b=busy(r.id);const cur=v.r===r.id;return `<button class="item" data-act="setRoom" data-v="${r.id}" ${b?"disabled style='opacity:.45;cursor:default'":""}><span class="tile ${r.type==="Laboratoire"?"violet":r.type==="Salle informatique"?"blue":r.type.startsWith("Terrain")?"green":"teal"}">${svg("school")}</span><span class="grow"><b>${esc(r.nom)}${cur?" · actuelle":""}</b><span>${b?"Occupée par "+esc(b.nom):esc(r.type)+(S.matieres.find(m=>m.salle===r.id&&m.id!==v.m)?" · réservée "+esc(S.matieres.find(m=>m.salle===r.id&&m.id!==v.m).code):"")+" · libre"}</span></span>${cur?`<span class="chip ok">✓</span>`:""}</button>`}).join("")||`<span class="small muted">Aucune salle. Ajoutez-en dans Saisie → Salles.</span>`}</div>
   <button class="btn" data-act="close">Fermer</button>`)}
 
 /* ---------- Réglages ---------- */
@@ -1051,7 +1057,7 @@ function canPut(cid,k,pid,rid,w){const [d,sl]=BKEY(k).split("-").map(Number);if(
   if(rid&&(roomMask(rid,BKEY(k),cid)&mk)){const c=S.classes.find(c=>c.id!==cid&&itemsAt(c.id,BKEY(k)).some(v=>v.r===rid&&(MASK(v)&mk)));return salleNom(rid)+" occupée par "+(c?.nom||"une autre classe")}
   return true}
 // Peut-on déplacer le contenu de la case a vers k (échange si k est occupée) ?
-function freeRoom(cid,k,v){for(const rid of [v.r,...roomChoices(cid,v.m)]){if(canPut(cid,k,null,rid,v.w)===true)return rid}return null}
+function freeRoom(cid,k,v){for(const rid of [...new Set([v.r,...roomChoices(cid,v.m)])]){if(canPut(cid,k,null,rid,v.w)===true)return rid}return null}
 function moveCheck(cid,a,k){const A=itemsAt(cid,a),B=itemsAt(cid,k);if(!A.length||a===k)return "same";
   for(const v of A){const r=canPut(cid,k,v.p,null,v.w);if(r!==true)return mat(v.m)?.code+" : "+r;if(v.r&&freeRoom(cid,k,v)===null)return mat(v.m)?.code+" : aucune salle libre"}
   for(const v of B){const r=canPut(cid,a,v.p,null,v.w);if(r!==true)return mat(v.m)?.code+" : "+r;if(v.r&&freeRoom(cid,a,v)===null)return mat(v.m)?.code+" : aucune salle libre"}
@@ -1258,8 +1264,10 @@ document.addEventListener("click",async e=>{
     case "affLevel":{const n=t.dataset.n,m=t.dataset.m,on=t.dataset.on==="1";S.classes.filter(c=>c.niveau===n).forEach(c=>{const a2=S.aff[c.id]=S.aff[c.id]||{};if(on)a2[m]=UI.affProf;else if(a2[m]===UI.affProf)delete a2[m]});afterAff();break}
     case "editSalle": sheetSalle(v);break;
     case "saveSalle":{const nom=document.getElementById("fs-nom").value.trim();if(!nom){toast("Donnez un nom à la salle");return}
-      const o={nom,type:document.getElementById("fs-type").value,multi:document.getElementById("fs-multi").checked};
-      if(v)Object.assign(salle(v),o);else S.salles.push({id:uid(),...o});save();closeSheet();render();break}
+      const o={nom,type:document.getElementById("fs-type").value,multi:document.getElementById("fs-multi").checked};let rid=v;
+      if(v)Object.assign(salle(v),o);else{rid=uid();S.salles.push({id:rid,...o})}
+      const fm=document.getElementById("fs-mat").value;S.matieres.forEach(m=>{if(m.salle===rid&&m.id!==fm)m.salle=""});if(fm)mat(fm).salle=rid;
+      save();closeSheet();render();break}
     case "delSalle": confirmBox("Supprimer cette salle ? Les cours concernés n'auront plus de salle.","Supprimer",()=>{S.salles=S.salles.filter(r=>r.id!==v);
       S.classes.forEach(c=>{if(c.salle===v)c.salle=""});S.matieres.forEach(m=>{if(m.salle===v)m.salle=""});
       for(const c in S.sched)for(const k in S.sched[c]) if(S.sched[c][k].r===v) S.sched[c][k].r="";save();render()});break;
