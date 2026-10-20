@@ -8,7 +8,7 @@ HorairePro est une application mobile installable, pensée pour les collèges et
 
 - **Fiche établissement** : logo, nom, sigle, type, statut, code, DREN, adresse, boîte postale, téléphones, e-mail, chef d'établissement, signataire, devise.
 - **Créneaux horaires** modifiables (07H15-08H10…), récréation et pause, jours ou demi-journées sans cours.
-- **Matières et volumes horaires** par niveau, de la 6ème à la Terminale (A, C, D).
+- **Matières et volumes horaires** par niveau, de la 6ème à la Terminale (A, C, D), avec les **1h30** (ex : PC et SVT de la 6ème à la 4ème) : 1 h chaque semaine + 1 h une semaine sur deux, en semaine A / semaine B.
 - **Classes** (effectif, salle, professeur principal) et **professeurs** (matières, statut, diplôme, matricule, heures dues, maximum, indisponibilités).
 - **Affectation automatique** des classes aux professeurs.
 - **Génération automatique** : aucun professeur dans deux classes à la fois, séances de 2 h, une matière une fois par jour, matières principales le matin.

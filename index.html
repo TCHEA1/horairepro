@@ -156,6 +156,13 @@ table.edt td.c.drop{border-style:dashed;border-color:var(--accent);background-co
 table.edt td.c.f.drop{background:hsl(var(--h) var(--cs) var(--cl))}
 table.edt td.c.no{opacity:.32}
 table.edt td.c .rm{display:inline-block;margin-left:2px;vertical-align:1px;white-space:nowrap;font-size:9.5px;font-weight:700;padding:1px 6px;border-radius:6px;background:rgb(255 255 255 / .55);color:var(--cell-ink);opacity:1;max-width:100%}
+table.edt td.c.split{background:linear-gradient(135deg,hsl(var(--h) var(--cs) var(--cl)) 50%,hsl(var(--h2) var(--cs) var(--cl)) 50%);padding:2px 3px}
+table.edt td.c .hl{display:block;font-size:10px;line-height:1.2;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;opacity:1}
+table.edt td.c .hl + .hl{margin-top:3px;padding-top:3px;border-top:1px dashed rgb(0 0 0 / .18)}
+table.edt td.c .hl b{display:inline;font-size:11px}
+table.edt td.c .hl span{display:inline;font-size:9.5px;opacity:.8}
+table.edt td.c .wk{font-style:normal;font-size:8.5px;font-weight:800;background:var(--cell-ink);color:var(--surface);border-radius:4px;padding:0 4px;margin-left:3px;vertical-align:1px}
+.wkk{font-size:10px;font-weight:800;background:var(--ink);color:var(--surface);border-radius:4px;padding:0 5px}
 table.edt td.c span.mr{opacity:1;font-weight:600}
 table.edt td.c b{display:block;font-size:12.5px;font-weight:800;line-height:1.15}
 table.edt td.c span{display:block;font-size:10px;opacity:.8;line-height:1.15;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
@@ -327,10 +334,10 @@ function defaultState(){
     ["AP","Arts plastiques / Musique",275,false,false],["PHILO","Philosophie",330,false,false]
   ].map(([code,nom,h,bloc,matin])=>({id:code,code,nom,h,bloc,matin}));
   const G=(o)=>o;
-  const c65={FR:5,ANG:4,MATH:4,PC:2,SVT:2,HG:2,EDHC:1,EPS:2,AP:1};
+  const c65={FR:5,ANG:4,MATH:4,PC:1.5,SVT:1.5,HG:2,EDHC:1,EPS:2,AP:1};
   const c43={FR:5,ANG:4,LV2:3,MATH:5,PC:3,SVT:2,HG:3,EDHC:1,EPS:2};
   const grille={
-    "6e":G({...c65}),"5e":G({...c65}),"4e":G({...c43}),"3e":G({...c43}),
+    "6e":G({...c65}),"5e":G({...c65}),"4e":G({...c43,PC:1.5,SVT:1.5}),"3e":G({...c43}),
     "2ndeA":{FR:5,ANG:4,LV2:4,MATH:3,PC:2,SVT:2,HG:4,EDHC:1,EPS:2},
     "2ndeC":{FR:4,ANG:3,LV2:2,MATH:5,PC:4,SVT:3,HG:3,EDHC:1,EPS:2},
     "1reA":{FR:5,ANG:4,LV2:4,MATH:3,SVT:2,HG:4,EDHC:1,EPS:2,PHILO:4},
@@ -452,16 +459,25 @@ const cls=id=>S.classes.find(c=>c.id===id);
 const salle=id=>id?S.salles.find(r=>r.id===id):null;
 const salleNom=id=>salle(id)?.nom||"";
 function roomFor(cid,mid){const m=mat(mid),c=cls(cid);return (m&&m.salle&&salle(m.salle)?m.salle:"")||(c&&c.salle&&salle(c.salle)?c.salle:"")||""}
+// Semaine A / B : une heure partagée entre deux cours qui alternent d'une semaine sur l'autre
+const BKEY=k=>k.split("/")[0];
+const W=v=>v&&v.w?0.5:1;
+const MASK=v=>v.w==="A"?1:v.w==="B"?2:3;
+function itemsAt(cid,k){const sc=S.sched[cid]||{};return [sc[k],sc[k+"/B"]].filter(Boolean)}
+function profMask(pid,k,except){let m=0;for(const c of S.classes){if(c.id===except)continue;for(const v of itemsAt(c.id,k)) if(v.p===pid) m|=MASK(v)}return m}
+function roomMask(rid,k,except){const r=salle(rid);if(!r||r.multi)return 0;let m=0;for(const c of S.classes){if(c.id===except)continue;for(const v of itemsAt(c.id,k)) if(v.r===rid) m|=MASK(v)}return m}
+const fmtH=h=>{const n=Math.floor(h),f=Math.round((h-n)*60);return f?(n?n+"h"+String(f).padStart(2,"0"):f+" min"):n+" h"};
 function roomBusy(rid,k,exceptCid){const r=salle(rid);if(!r||r.multi)return null;for(const c of S.classes){if(c.id===exceptCid)continue;const v=(S.sched[c.id]||{})[k];if(v&&v.r===rid)return c}return null}
 const hcode=h=>"--h:"+h;
 const shortName=n=>{if(!n)return"";const p=n.split(" ");return p[0]+(p[1]?" "+p[1][0]+".":"")};
 function needOf(c){const g=S.grille[c.niveau]||{};return S.matieres.map(m=>({m:m.id,h:+g[m.id]||0})).filter(x=>x.h>0)}
 function classHours(c){return needOf(c).reduce((a,x)=>a+x.h,0)}
 function profLoadAff(pid){let t=0;for(const c of S.classes){const a=S.aff[c.id]||{};for(const x of needOf(c)) if(a[x.m]===pid) t+=x.h}return t}
-function profCells(pid){const out=[];for(const c of S.classes){const sc=S.sched[c.id]||{};for(const k in sc) if(sc[k].p===pid) out.push({k,c:c.id,m:sc[k].m,r:sc[k].r||""})}return out}
-function placedCount(cid,mid){const sc=S.sched[cid]||{};let n=0;for(const k in sc) if(sc[k].m===mid) n++;return n}
+function profCells(pid){const out=[];for(const c of S.classes){const sc=S.sched[c.id]||{};for(const k in sc) if(sc[k].p===pid) out.push({k:BKEY(k),c:c.id,m:sc[k].m,r:sc[k].r||"",w:sc[k].w||""})}return out}
+function groupCells(list){const g={};list.forEach(x=>(g[x.k]=g[x.k]||[]).push(x));return g}
+function placedCount(cid,mid){const sc=S.sched[cid]||{};let n=0;for(const k in sc) if(sc[k].m===mid) n+=W(sc[k]);return n}
 function totalNeeded(){return S.classes.reduce((a,c)=>a+classHours(c),0)}
-function totalPlaced(){let n=0;for(const c of S.classes) n+=Object.keys(S.sched[c.id]||{}).length;return n}
+function totalPlaced(){let n=0;for(const c of S.classes) for(const v of Object.values(S.sched[c.id]||{})) n+=W(v);return n}
 function unassignedCount(){let n=0;for(const c of S.classes){const a=S.aff[c.id]||{};for(const x of needOf(c)) if(!a[x.m]||!prof(a[x.m])) n++}return n}
 function breakLabel(s){const a=S.creneaux[s-1],b=S.creneaux[s];if(!a||!b||a.g===b.g)return null;
   const mid=parseInt(b.debut)>=13;return (mid?"Pause":"Récréation")+" · "+a.fin+" – "+b.debut}
@@ -496,8 +512,10 @@ function buildLessons(){
   const L=[];
   for(const c of S.classes){const a=S.aff[c.id]||{};
     for(const x of needOf(c)){const m=mat(x.m);const p=a[x.m]&&prof(a[x.m])?a[x.m]:null;const ch=[];
-      if(S.gen.bloc2&&m.bloc&&x.h>=2){let r=x.h;while(r>=2){ch.push(2);r-=2}if(r)ch.push(1)}else for(let i=0;i<x.h;i++)ch.push(1);
-      const r=roomFor(c.id,x.m);ch.forEach(d=>L.push({c:c.id,m:x.m,p,d,n:ch.length,r}));}}
+      const whole=Math.floor(x.h+1e-9),half=x.h-whole>=0.25;
+      if(S.gen.bloc2&&m.bloc&&whole>=2){let r=whole;while(r>=2){ch.push(2);r-=2}if(r)ch.push(1)}else for(let i=0;i<whole;i++)ch.push(1);
+      const r=roomFor(c.id,x.m);const n=ch.length+(half?1:0);ch.forEach(d=>L.push({c:c.id,m:x.m,p,d,n,r}));
+      if(half) L.push({c:c.id,m:x.m,p,d:1,n,r,half:true});}}
   return L;
 }
 function generate(){
@@ -510,19 +528,21 @@ function generate(){
   while(att<400){att++;
     const C={},P={},RM={},CD={},MD={},PD={};const res={};const un=[];let score=0;
     const tight=l=>l.p?pHours[l.p]/pAvail[l.p]:0;
-    const ord=L.map(l=>({l,k:(l.d===2?-50:0)-tight(l)*20-(l.n>=4?5:0)+Math.random()*6})).sort((a,b)=>a.k-b.k).map(o=>o.l);
+    const ord=L.map(l=>({l,k:(l.half?40:0)+(l.d===2?-50:0)-tight(l)*20-(l.n>=4?5:0)+Math.random()*6})).sort((a,b)=>a.k-b.k).map(o=>o.l);
     const tryPlace=(l,dur,forbidDay)=>{
       let bestPos=null,bs=1e9;const m=mat(l.m);
       for(let d=0;d<5;d++){ if(d===forbidDay) continue;
         const md=MD[l.c+"|"+l.m+"|"+d]||0;const hard=l.n<=daysAvail;
         if(md&&hard) continue;
-        for(let s=0;s+dur<=N;s++){let ok=true;
+        for(let s=0;s+dur<=N;s++){let ok=true,wk=0,pair=false;
           for(let k=0;k<dur;k++){const ss=s+k;const key=d+"-"+ss;
-            if(isOff(d,ss)||grp(ss)!==grp(s)||C[l.c+"@"+key]){ok=false;break}
-            if(l.p&&(P[l.p+"@"+key]||prof(l.p).indispo[key])){ok=false;break}
-            if(l.r&&!salle(l.r)?.multi&&RM[l.r+"@"+key]){ok=false;break}}
+            if(isOff(d,ss)||grp(ss)!==grp(s)){ok=false;break}
+            if(l.p&&prof(l.p).indispo[key]){ok=false;break}
+            const cu=C[l.c+"@"+key]||0;const used=cu|(l.p?P[l.p+"@"+key]||0:0)|(l.r&&!salle(l.r)?.multi?RM[l.r+"@"+key]||0:0);
+            if(l.half){const free=3&~used;if(!free){ok=false;break}wk=(free&1)?1:2;pair=cu?2:used?1:0}
+            else if(used){ok=false;break}}
           if(!ok) continue;
-          let sc=Math.random()*2;
+          let sc=Math.random()*2;if(pair===2) sc-=9;else if(pair===1) sc-=2;
           sc+=(CD[l.c+"|"+d]||0)*1.4;
           if(l.p) sc+=(PD[l.p+"|"+d]||0)*0.5;
           if(md) sc+=8;
@@ -530,13 +550,13 @@ function generate(){
           if(l.m==="EPS"&&grp(s)!==3&&s!==0) sc+=1.5;
           if(s+dur-1===last) sc+=1.8;
           if(C[l.c+"@"+d+"-"+(s-1)]||C[l.c+"@"+d+"-"+(s+dur)]) sc-=1.2;
-          if(sc<bs){bs=sc;bestPos={d,s}}
+          if(sc<bs){bs=sc;bestPos={d,s,wk}}
         }}
       if(!bestPos) return null;
-      const {d,s}=bestPos;
-      for(let k=0;k<dur;k++){const key=d+"-"+(s+k);C[l.c+"@"+key]=1;if(l.p)P[l.p+"@"+key]=1;if(l.r)RM[l.r+"@"+key]=1;
-        (res[l.c]=res[l.c]||{})[key]={m:l.m,p:l.p,r:l.r||""}}
-      CD[l.c+"|"+d]=(CD[l.c+"|"+d]||0)+dur;if(l.p)PD[l.p+"|"+d]=(PD[l.p+"|"+d]||0)+dur;
+      const {d,s,wk}=bestPos;const bit=l.half?wk:3;
+      for(let k=0;k<dur;k++){const key=d+"-"+(s+k);C[l.c+"@"+key]=(C[l.c+"@"+key]||0)|bit;if(l.p)P[l.p+"@"+key]=(P[l.p+"@"+key]||0)|bit;if(l.r)RM[l.r+"@"+key]=(RM[l.r+"@"+key]||0)|bit;
+        const cell={m:l.m,p:l.p,r:l.r||""};if(l.half)cell.w=bit===1?"A":"B";(res[l.c]=res[l.c]||{})[l.half&&bit===2?key+"/B":key]=cell}
+      const wt=l.half?0.5:dur;CD[l.c+"|"+d]=(CD[l.c+"|"+d]||0)+wt;if(l.p)PD[l.p+"|"+d]=(PD[l.p+"|"+d]||0)+wt;
       MD[l.c+"|"+l.m+"|"+d]=(MD[l.c+"|"+l.m+"|"+d]||0)+1;score+=bs;return d;
     };
     for(const l of ord){
@@ -546,15 +566,30 @@ function generate(){
           if(d1===null) un.push(l); else if(tryPlace(l1,1,d1)===null) un.push({...l,d:1});}
         else un.push(l);
       }}
-    const miss=un.reduce((a,l)=>a+l.d,0);
+    const miss=un.reduce((a,l)=>a+(l.half?0.5:l.d),0);
     if(!best||miss<best.miss||(miss===best.miss&&score<best.score)) best={res,un,miss,score};
     const el=performance.now()-t0;
     if((best.miss===0&&att>=6)||el>2600) break;
   }
   snapshot("Nouvelle génération complète");
   S.sched=best.res;
-  S.gen.report={at:Date.now(),miss:best.miss,un:best.un.map(l=>({c:l.c,m:l.m,p:l.p,d:l.d})),att,total:L.reduce((a,l)=>a+l.d,0)};
+  pairHalves();
+  S.gen.report={at:Date.now(),miss:best.miss,un:best.un.map(l=>({c:l.c,m:l.m,p:l.p,d:l.half?0.5:l.d})),att,total:L.reduce((a,l)=>a+(l.half?0.5:l.d),0)};
   save();return S.gen.report;
+}
+
+// Regroupe dans une même heure deux demi-cours seuls d'une classe (ex : PC semaine A + SVT semaine B)
+function pairHalves(){
+  for(const c of S.classes){const sc=S.sched[c.id]||{};
+    const lone=()=>Object.keys(sc).filter(k=>sc[k].w&&!sc[k.endsWith("/B")?BKEY(k):k+"/B"]);
+    let guard=0,again=true;
+    while(again&&guard++<20){again=false;const L=lone();
+      outer: for(const k1 of L)for(const k2 of L){if(BKEY(k1)===BKEY(k2))continue;const x=sc[k1],y=sc[k2];if(!x||!y||x.m===y.m)continue;
+        const base=BKEY(k1),wk=x.w==="A"?"B":"A";const p=prof(y.p);if(p&&p.indispo[base])continue;
+        const mk=wk==="A"?1:2;if(y.p&&(profMask(y.p,base,c.id)&mk))continue;if(y.r&&(roomMask(y.r,base,c.id)&mk))continue;
+        delete sc[k2];const cell={...y,w:wk};if(wk==="A"){sc[base+"/B"]=x;x.w="B";sc[base]={...y,w:"A"}}else sc[base+"/B"]=cell;
+        if(wk==="A"){/* x moved to B position */}
+        again=true;break outer}}}
 }
 
 /* ===================== Interface ===================== */
@@ -611,7 +646,7 @@ function vHome(){
   const st=[
     ["set","school","teal","Établissement et horaires",S.etab.nom?esc(S.etab.nom):"Nom, logo, DREN, créneaux",!!S.etab.nom],
     ["mats","layers","violet","Matières et volumes",S.matieres.length+" matières",S.matieres.length>0],
-    ["classes","book","orange","Classes",S.classes.length+" classes · "+need+" h/semaine",S.classes.length>0],
+    ["classes","book","orange","Classes",S.classes.length+" classes · "+fmtH(need)+"/semaine",S.classes.length>0],
     ["profs","users","blue","Professeurs",S.profs.length+" professeurs",S.profs.length>0],
     ["aff","link","pink","Affectations",ua?ua+" cours sans professeur":"Chaque matière a son professeur",S.classes.length>0&&ua===0],
     ["gen","gen","green","Génération automatique",S.gen.report?new Date(S.gen.report.at).toLocaleDateString("fr-FR"):"Pas encore lancée",!!S.gen.report&&S.gen.report.miss===0]
@@ -625,7 +660,7 @@ function vHome(){
   ${S.exemple?`<div class="banner"><span style="flex:1;min-width:190px"><b>Données d'exemple.</b> Professeurs et effectifs fictifs, pour découvrir l'appli.</span><button class="btn" data-act="clearSample">Commencer à zéro</button></div>`:""}
   <div class="hgrid"><div class="hcol"><section class="hero"><div class="deco"></div>
     <span class="lbl">Heures de cours placées</span>
-    <span class="big">${placed}<small> / ${need} h</small></span>
+    <span class="big">${String(placed).replace(".",",")}<small> / ${String(need).replace(".",",")} h</small></span>
     <span class="sub"><span class="dot"></span>${r?(r.miss?r.miss+" h à placer à la main":"100 % placé, sans conflit"):"Lancez la génération"} · ${S.classes.length} classes · ${S.profs.length} profs</span>
     <div class="prog"><i style="width:${pct}%"></i></div></section>
   <div class="quick">
@@ -651,7 +686,7 @@ function vClasses(){
   const sorted=[...S.classes].sort((a,b)=>NIV.findIndex(n=>n.id===a.niveau)-NIV.findIndex(n=>n.id===b.niveau)||a.nom.localeCompare(b.nom,"fr",{numeric:true}));
   return `<section class="card"><div class="sec-title"><h3>${S.classes.length} classes</h3><div class="row"><button class="btn" data-act="addMany">+ Plusieurs</button><button class="btn primary" data-act="editClass">+ Classe</button></div></div>
   ${sorted.length?`<div class="list">${sorted.map(c=>{const p=prof(c.pp);const h=classHours(c);
-    return `<button class="item" data-act="editClass" data-v="${c.id}"><span class="tile ${tone(c.niveau)}" style="width:auto;min-width:42px;padding:0 8px">${esc(c.nom)}</span><span class="grow"><b>${esc(nivL(c.niveau))} · ${c.effectif||0} élèves</b><span>${h} h/semaine${p?" · PP : "+esc(p.nom):""}</span></span><span class="chev">›</span></button>`}).join("")}</div>`
+    return `<button class="item" data-act="editClass" data-v="${c.id}"><span class="tile ${tone(c.niveau)}" style="width:auto;min-width:42px;padding:0 8px">${esc(c.nom)}</span><span class="grow"><b>${esc(nivL(c.niveau))} · ${c.effectif||0} élèves</b><span>${fmtH(h)}/semaine${p?" · PP : "+esc(p.nom):""}</span></span><span class="chev">›</span></button>`}).join("")}</div>`
   :`<div class="empty">Aucune classe. Ajoutez-en une, ou plusieurs d'un coup (ex : 6è1 à 6è4).<button class="btn primary" data-act="addMany">Ajouter des classes</button></div>`}</section>`;
 }
 function vProfs(){
@@ -664,11 +699,11 @@ function vProfs(){
 }
 const STYPES=["Classe","Laboratoire","Salle informatique","Terrain / Plateau EPS","Salle polyvalente","Autre"];
 function vSalles(){
-  const use={};for(const c of S.classes)for(const v of Object.values(S.sched[c.id]||{})) if(v.r) use[v.r]=(use[v.r]||0)+1;
+  const use={};for(const c of S.classes)for(const v of Object.values(S.sched[c.id]||{})) if(v.r) use[v.r]=(use[v.r]||0)+W(v);
   const tileOf=t=>t==="Laboratoire"?"violet":t==="Salle informatique"?"blue":t.startsWith("Terrain")?"green":t==="Classe"?"teal":"orange";
   return `<section class="card"><div class="sec-title"><h3>${S.salles.length} salles</h3><div class="row"><button class="btn" data-act="autoSalles">+ Une par classe</button><button class="btn primary" data-act="editSalle">+ Salle</button></div></div>
   ${S.salles.length?`<div class="list">${S.salles.map(r=>{const who=[...S.classes.filter(c=>c.salle===r.id).map(c=>c.nom),...S.matieres.filter(m=>m.salle===r.id).map(m=>m.code)];
-    return `<button class="item" data-act="editSalle" data-v="${r.id}"><span class="tile ${tileOf(r.type)}">${svg("school")}</span><span class="grow"><b>${esc(r.nom)}</b><span>${esc(r.type)}${who.length?" · "+esc(who.join(", ")):""}${r.multi?" · plusieurs classes à la fois":""}</span></span><span class="chip">${use[r.id]||0} h</span></button>`}).join("")}</div>`
+    return `<button class="item" data-act="editSalle" data-v="${r.id}"><span class="tile ${tileOf(r.type)}">${svg("school")}</span><span class="grow"><b>${esc(r.nom)}</b><span>${esc(r.type)}${who.length?" · "+esc(who.join(", ")):""}${r.multi?" · plusieurs classes à la fois":""}</span></span><span class="chip">${fmtH(use[r.id]||0)}</span></button>`}).join("")}</div>`
   :`<div class="empty">Aucune salle. Ajoutez vos salles de classe, laboratoires, salle informatique, terrain de sport…<button class="btn primary" data-act="autoSalles">Créer une salle par classe</button></div>`}</section>
   <div class="tip"><span class="tile green" style="width:36px;height:36px">${svg("bulb")}</span><div><b>Comment sont choisies les salles ?</b>Chaque classe a sa salle. Une matière peut avoir une salle spéciale (ex : PC au Labo, EPS au terrain). Deux classes ne sont jamais dans la même salle en même temps, sauf si la salle accepte plusieurs classes.</div></div>`}
 function sheetSalle(id){const r=id?salle(id):{nom:"",type:"Classe",multi:false};
@@ -683,10 +718,10 @@ function vMats(){
   const showN=nivs.length?nivs:NIV.slice(0,4);
   return `<section class="card"><div class="sec-title"><h3>Matières</h3><button class="btn primary" data-act="editMat">+ Matière</button></div>
   <div class="list">${S.matieres.map(m=>`<button class="item" data-act="editMat" data-v="${m.id}"><span class="mat" style="${hcode(m.h)}">${esc(m.code)}</span><span class="grow"><b>${esc(m.nom)}</b><span>${[m.bloc?"Séances de 2 h":"Séances d'1 h",m.matin?"plutôt le matin":""].filter(Boolean).join(" · ")}</span></span><span class="chev">›</span></button>`).join("")}</div></section>
-  <section class="card"><h3>Volumes horaires par semaine</h3><p class="muted small" style="margin:0">Grille proposée par défaut, à ajuster selon les instructions officielles de votre DREN. Une heure = un créneau.</p>
+  <section class="card"><h3>Volumes horaires par semaine</h3><p class="muted small" style="margin:0">Grille proposée par défaut, à ajuster selon les instructions officielles. Une heure = un créneau. Tapez <b>1,5</b> pour <b>1h30</b> : 1 h chaque semaine + 1 h une semaine sur deux (semaine A / semaine B). Deux matières à 1h30, comme PC et SVT, se partagent alors la même heure en alternance.</p>
   <div class="scroll"><table class="vol"><thead><tr><th>Matière</th>${showN.map(n=>`<th>${esc(n.l)}</th>`).join("")}</tr></thead>
-  <tbody>${S.matieres.map(m=>`<tr><td><span class="mat" style="${hcode(m.h)}">${esc(m.code)}</span></td>${showN.map(n=>`<td><input type="number" min="0" max="12" inputmode="numeric" id="v-${n.id}-${m.id}" data-act="vol" data-n="${n.id}" data-m="${m.id}" value="${(S.grille[n.id]||{})[m.id]||""}"></td>`).join("")}</tr>`).join("")}</tbody>
-  <tfoot><tr><td>Total</td>${showN.map(n=>`<td>${Object.values(S.grille[n.id]||{}).reduce((a,b)=>a+(+b||0),0)} h</td>`).join("")}</tr></tfoot></table></div></section>`;
+  <tbody>${S.matieres.map(m=>`<tr><td><span class="mat" style="${hcode(m.h)}">${esc(m.code)}</span></td>${showN.map(n=>`<td><input type="number" min="0" max="12" step="0.5" inputmode="decimal" id="v-${n.id}-${m.id}" data-act="vol" data-n="${n.id}" data-m="${m.id}" value="${(S.grille[n.id]||{})[m.id]||""}"></td>`).join("")}</tr>`).join("")}</tbody>
+  <tfoot><tr><td>Total</td>${showN.map(n=>`<td>${fmtH(Object.values(S.grille[n.id]||{}).reduce((a,b)=>a+(+b||0),0))}</td>`).join("")}</tr></tfoot></table></div></section>`;
 }
 function vAff(){
   if(!S.classes.length) return `<section class="card"><div class="empty">Ajoutez d'abord des classes et des professeurs.</div></section>`;
@@ -694,9 +729,9 @@ function vAff(){
   return `<section class="card"><div class="sec-title"><div><h3>Qui enseigne quoi</h3><span class="muted small">${ua?ua+" cours sans professeur":"Toutes les matières sont couvertes"}</span></div>
   <button class="btn primary" data-act="autoAff">Affecter automatiquement</button></div>
   <p class="muted small" style="margin:0">L'appli répartit les classes entre les professeurs de chaque matière en respectant leur maximum d'heures. Vous pouvez changer chaque choix.</p></section>
-  <div class="cards">${S.classes.map(c=>`<section class="card"><div class="sec-title"><h3>${esc(c.nom)}</h3><span class="chip">${classHours(c)} h</span></div>
+  <div class="cards">${S.classes.map(c=>`<section class="card"><div class="sec-title"><h3>${esc(c.nom)}</h3><span class="chip">${fmtH(classHours(c))}</span></div>
   <div class="list">${needOf(c).map(x=>{const m=mat(x.m);const cur=(S.aff[c.id]||{})[x.m];const cands=S.profs.filter(p=>p.mats.includes(x.m));const others=S.profs.filter(p=>!p.mats.includes(x.m));
-    return `<div class="item" style="cursor:default"><span class="mat" style="${hcode(m.h)}">${esc(m.code)}</span><span class="small muted" style="width:30px">${x.h} h</span>
+    return `<div class="item" style="cursor:default"><span class="mat" style="${hcode(m.h)}">${esc(m.code)}</span><span class="small muted" style="width:38px">${fmtH(x.h)}</span>
     <select class="in" style="flex:1;min-width:0" id="a-${c.id}-${x.m}" data-act="setAff" data-c="${c.id}" data-m="${x.m}">
       <option value="">— Aucun professeur —</option>
       ${cands.map(p=>`<option value="${p.id}" ${cur===p.id?"selected":""}>${esc(p.nom)} (${profLoadAff(p.id)}/${p.max} h)</option>`).join("")}
@@ -750,46 +785,57 @@ function ficheHead(title){const e=S.etab;
   <div class="r"><b>RÉPUBLIQUE DE CÔTE D'IVOIRE</b><br><i>Union – Discipline – Travail</i><br><b>${esc((e.nom||"").toUpperCase())}</b><br>Année scolaire : ${esc(e.annee)}${addrLine(e)?"<br>"+esc(addrLine(e)):""}${e.email?"<br>"+esc(e.email):""}</div></div>
   <div class="fiche-title">${title}</div>${e.applic?`<div class="small muted" style="text-align:center">Applicable à partir du ${esc(e.applic)}</div>`:""}`}
 function signLine(){const e=S.etab;return `<div class="small" style="display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap"><i>${esc(e.devise||"")}</i><span style="text-align:right"><b style="text-decoration:underline">${esc(e.etudesTitre||"LE DIRECTEUR DES ÉTUDES")}</b>${e.etudesNom?"<br>"+esc(e.etudesNom):""}</span></div>`}
+function cellBody(items,kind,home){ // contenu d'une case : un cours, ou deux cours qui alternent (semaine A / B)
+  const one=(v,small)=>{const m=mat(v.m),c=cls(v.c),p=prof(v.p);const wk=v.w?`<i class="wk">${v.w}</i>`:"";
+    const rm=v.r?` <span class="rm">${esc(salleNom(v.r))}</span>`:"";
+    if(kind==="prof") return small?`<span class="hl"><b>${esc(c?.nom)}</b>${wk} ${esc(m?.code)}${rm}</span>`:`<b>${esc(c?.nom)}</b><span class="mr">${esc(m?.code)}${rm}</span>`;
+    if(kind==="salle") return small?`<span class="hl"><b>${esc(c?.nom)}</b>${wk} ${esc(m?.code)}</span>`:`<b>${esc(c?.nom)}</b><span>${esc(m?.code)} · ${esc(shortName(p?.nom))}</span>`;
+    return small?`<span class="hl"><b>${esc(m?.code)}</b>${wk}${rm}<br><span>${esc(shortName(p?.nom))}</span></span>`:`<b>${esc(m?.code||"?")}${rm}</b><span>${esc(shortName(p?.nom))}</span>`};
+  if(items.length===1&&!items[0].w) return one(items[0],false);
+  const sorted=[...items].sort((x,y)=>(x.w||"").localeCompare(y.w||""));
+  return sorted.map(v=>one(v,true)).join("")+(sorted.length===1?`<span class="hl muted">${sorted[0].w==="A"?"B":"A"} : libre</span>`:"");
+}
+function cellStyle(items){const h1=mat(items[0].m)?.h||0;if(items.length>1&&items[1].m!==items[0].m)return `--h:${h1};--h2:${mat(items[1].m)?.h||0}`;return `--h:${h1};--h2:${h1}`}
 function gridHTML(kind,id){
   const N=nS();let h=`<div class="scroll"><table class="edt"><thead><tr><th class="h">Horaire</th>${JOURS.map(j=>`<th>${UI.lay==="desk"?j:j.slice(0,3)}</th>`).join("")}</tr></thead><tbody>`;
-  const pc=kind==="prof"?Object.fromEntries(profCells(id).map(x=>[x.k,x])):null;
+  const pc=kind==="prof"?groupCells(profCells(id)):null;
   for(let s=0;s<N;s++){const bl=breakLabel(s);if(bl) h+=`<tr><td></td><td class="brk" colspan="5">${bl}</td></tr>`;
     const cr=S.creneaux[s];h+=`<tr><td class="h">${cr.debut}<br>${cr.fin}</td>`;
     for(let d=0;d<5;d++){const k=d+"-"+s;
       if(isOff(d,s)){h+=`<td class="c off" title="Pas de cours"></td>`;continue}
-      if(kind==="classe"){const v=(S.sched[id]||{})[k];const home=cls(id)?.salle;
-        const sel=UI.sel&&UI.sel.k===k;let st="";if(UI.sel&&!sel){const r=moveCheck(id,UI.sel.k,k);st=r===true?"drop":"no"}
-        if(v){const m=mat(v.m);const p=prof(v.p);h+=`<td class="c f ${sel?"sel":""} ${st}" style="${hcode(m?.h||0)}" data-act="cell" data-k="${k}"><b>${esc(m?.code||"?")}${v.r?` <span class="rm">${esc(salleNom(v.r))}</span>`:""}</b><span>${esc(shortName(p?.nom))}</span></td>`}
+      let items=[];
+      if(kind==="classe") items=itemsAt(id,k).map(v=>({...v,c:id}));
+      else if(kind==="salle") items=S.classes.flatMap(c=>itemsAt(c.id,k).filter(v=>v.r===id).map(v=>({...v,c:c.id})));
+      else items=(pc[k]||[]);
+      const split=items.length>1||(items[0]&&items[0].w);
+      if(kind==="classe"){const sel=UI.sel&&UI.sel.k===k;let st="";if(UI.sel&&!sel){const r=moveCheck(id,UI.sel.k,k);st=r===true?"drop":"no"}
+        if(items.length) h+=`<td class="c f ${split?"split":""} ${sel?"sel":""} ${st}" style="${cellStyle(items)}" data-act="cell" data-k="${k}">${cellBody(items,"classe")}</td>`;
         else h+=`<td class="c ${st}" data-act="cell" data-k="${k}" aria-label="Case libre"></td>`;
-      }else if(kind==="salle"){const occ=S.classes.map(c=>({c,v:(S.sched[c.id]||{})[k]})).filter(x=>x.v&&x.v.r===id);
-        if(occ.length){const m=mat(occ[0].v.m);h+=`<td class="c f" style="${hcode(m?.h||0)}" data-act="goClass" data-v="${occ[0].c.id}"><b>${esc(occ.map(x=>x.c.nom).join(" + "))}</b><span>${esc(m?.code)} · ${esc(shortName(prof(occ[0].v.p)?.nom))}</span></td>`}
-        else h+=`<td class="c" style="cursor:default"></td>`;
-      }else{const v=pc[k];
-        if(v){const m=mat(v.m),c=cls(v.c);h+=`<td class="c f" style="${hcode(m?.h||0)}" data-act="goClass" data-v="${v.c}"><b>${esc(c?.nom)}</b><span class="mr">${esc(m?.code)}${v.r?` <span class="rm">${esc(salleNom(v.r))}</span>`:""}</span></td>`}
-        else h+=`<td class="c" style="cursor:default"></td>`;}
+      }else if(items.length){h+=`<td class="c f ${split?"split":""}" style="${cellStyle(items)}" data-act="goClass" data-v="${items[0].c}">${cellBody(items,kind)}</td>`}
+      else h+=`<td class="c" style="cursor:default"></td>`;
     }h+=`</tr>`}
   return h+`</tbody></table></div>`;
 }
 function ficheClasse(c){
   const pp=prof(c.pp);const need=needOf(c);
   return `<section class="card fiche">${ficheHead("EMPLOI DU TEMPS CLASSE")}
-  <div class="kv"><div><span>Classe :</span> <b>${esc(c.nom)}</b></div><div><span>Effectif :</span> ${c.effectif||"—"}</div><div><span>Professeur principal :</span> ${esc(pp?.nom||"—")}</div><div><span>Volume :</span> ${classHours(c)} h/semaine</div>${c.salle?`<div><span>Salle :</span> ${esc(salleNom(c.salle))}</div>`:""}</div>
+  <div class="kv"><div><span>Classe :</span> <b>${esc(c.nom)}</b></div><div><span>Effectif :</span> ${c.effectif||"—"}</div><div><span>Professeur principal :</span> ${esc(pp?.nom||"—")}</div><div><span>Volume :</span> ${fmtH(classHours(c))}/semaine</div>${c.salle?`<div><span>Salle :</span> ${esc(salleNom(c.salle))}</div>`:""}</div>
   <p class="small muted" style="margin:0">Touchez un cours : les cases en pointillé vert montrent où il peut aller sans conflit. Touchez-en une pour déplacer ou échanger. Une case vide permet d'ajouter un cours.</p>
-  ${gridHTML("classe",c.id)}
+  ${gridHTML("classe",c.id)}${S.classes.some(c=>Object.values(S.sched[c.id]||{}).some(v=>v.w))?`<div class="small muted"><b class="wkk">A</b> <b class="wkk">B</b> = semaine A / semaine B : ces cours ont lieu une semaine sur deux (volumes de 1h30).</div>`:""}
   <div class="scroll"><table class="rec"><thead><tr><th>Discipline</th><th>Professeur</th><th>Prévu</th><th>Placé</th></tr></thead><tbody>
-  ${need.map(x=>{const m=mat(x.m);const p=prof((S.aff[c.id]||{})[x.m]);const pl=placedCount(c.id,x.m);return `<tr><td><span class="mat" style="${hcode(m.h)}">${esc(m.code)}</span> ${esc(m.nom)}</td><td>${esc(p?.nom||"—")}</td><td class="n">${x.h} h</td><td class="n">${pl===x.h?pl+" h":`<span class="chip ${pl<x.h?"warn":"bad"}">${pl} h</span>`}</td></tr>`}).join("")}
+  ${need.map(x=>{const m=mat(x.m);const p=prof((S.aff[c.id]||{})[x.m]);const pl=placedCount(c.id,x.m);return `<tr><td><span class="mat" style="${hcode(m.h)}">${esc(m.code)}</span> ${esc(m.nom)}</td><td>${esc(p?.nom||"—")}</td><td class="n">${fmtH(x.h)}</td><td class="n">${pl===x.h?fmtH(pl):`<span class="chip ${pl<x.h?"warn":"bad"}">${fmtH(pl)}</span>`}</td></tr>`}).join("")}
   </tbody></table></div>
   ${signLine()}</section>`;
 }
-function ficheSalle(r){let n=0;for(const c of S.classes)for(const v of Object.values(S.sched[c.id]||{})) if(v.r===r.id) n++;
+function ficheSalle(r){let n=0;for(const c of S.classes)for(const v of Object.values(S.sched[c.id]||{})) if(v.r===r.id) n+=W(v);
   return `<section class="card fiche">${ficheHead("OCCUPATION DE LA SALLE")}
-  <div class="kv"><div><span>Salle :</span> <b>${esc(r.nom)}</b></div><div><span>Type :</span> ${esc(r.type)}</div><div><span>Occupation :</span> ${n} h/semaine</div>${r.multi?`<div><span>Accueille plusieurs classes à la fois</span></div>`:""}</div>
+  <div class="kv"><div><span>Salle :</span> <b>${esc(r.nom)}</b></div><div><span>Type :</span> ${esc(r.type)}</div><div><span>Occupation :</span> ${fmtH(n)}/semaine</div>${r.multi?`<div><span>Accueille plusieurs classes à la fois</span></div>`:""}</div>
   ${gridHTML("salle",r.id)}${signLine()}</section>`}
 function profRecap(p){
   const cells=profCells(p.id);const g={};
-  for(const x of cells){const c=cls(x.c);const key=x.m+"|"+c.niveau;(g[key]=g[key]||{m:x.m,n:c.niveau,cl:{},h:0}).h++;g[key].cl[c.id]=c}
+  for(const x of cells){const c=cls(x.c);const key=x.m+"|"+c.niveau;(g[key]=g[key]||{m:x.m,n:c.niveau,cl:{},h:0}).h+=x.w?0.5:1;g[key].cl[c.id]=c}
   const rows=Object.values(g).sort((a,b)=>NIV.findIndex(n=>n.id===a.n)-NIV.findIndex(n=>n.id===b.n));
-  const total=cells.length;const sup=Math.max(0,total-(+p.du||0));
+  const total=cells.reduce((a,x)=>a+(x.w?0.5:1),0);const sup=Math.max(0,total-(+p.du||0));
   const ppOf=S.classes.filter(c=>c.pp===p.id).map(c=>c.nom).join(", ");
   return {rows,total,sup,ppOf};
 }
@@ -800,12 +846,12 @@ function ficheProf(p){
   <div><span>Discipline :</span> ${p.mats.map(m=>mat(m)?.code).join(", ")}</div><div><span>Statut :</span> ${p.statut}</div>
   <div><span>Diplôme :</span> ${esc(p.diplome||"—")}</div><div><span>Tél :</span> ${esc(p.tel||"—")}</div>
   <div><span>Matricule / N° autorisation :</span> ${esc(p.matricule||"—")}</div>${p.origine?`<div><span>Établissement d'origine :</span> ${esc(p.origine)}</div>`:""}</div>
-  ${gridHTML("prof",p.id)}
+  ${gridHTML("prof",p.id)}${S.classes.some(c=>Object.values(S.sched[c.id]||{}).some(v=>v.w))?`<div class="small muted"><b class="wkk">A</b> <b class="wkk">B</b> = semaine A / semaine B : ces cours ont lieu une semaine sur deux (volumes de 1h30).</div>`:""}
   <h3>Tableau récapitulatif</h3>
   <div class="scroll"><table class="rec"><thead><tr><th>Classes</th><th>Effectifs</th><th>Discipline</th><th>Heures</th></tr></thead><tbody>
-  ${rows.map(r=>{const cl=Object.values(r.cl);return `<tr><td>${cl.map(c=>esc(c.nom)).join(" / ")}</td><td class="n">${cl.reduce((a,c)=>a+(+c.effectif||0),0)||"—"}</td><td>${esc(mat(r.m)?.code)}</td><td class="n">${r.h} h</td></tr>`}).join("")||`<tr><td colspan="4" class="muted">Aucun cours placé</td></tr>`}
-  <tr><td colspan="3"><b>Total</b></td><td class="n"><b>${total} h</b></td></tr>
-  <tr><td colspan="3">Heures supplémentaires (au-delà de ${p.du||0} h dues)</td><td class="n">${sup} h</td></tr>
+  ${rows.map(r=>{const cl=Object.values(r.cl);return `<tr><td>${cl.map(c=>esc(c.nom)).join(" / ")}</td><td class="n">${cl.reduce((a,c)=>a+(+c.effectif||0),0)||"—"}</td><td>${esc(mat(r.m)?.code)}</td><td class="n">${fmtH(r.h)}</td></tr>`}).join("")||`<tr><td colspan="4" class="muted">Aucun cours placé</td></tr>`}
+  <tr><td colspan="3"><b>Total</b></td><td class="n"><b>${fmtH(total)}</b></td></tr>
+  <tr><td colspan="3">Heures supplémentaires (au-delà de ${p.du||0} h dues)</td><td class="n">${fmtH(sup)}</td></tr>
   <tr><td colspan="3">Professeur principal de la classe de</td><td>${esc(ppOf||"—")}</td></tr></tbody></table></div>
   ${signLine()}</section>`;
 }
@@ -919,25 +965,27 @@ function sheetMat(id){const m=id?mat(id):{code:"",nom:"",h:HUES[S.matieres.lengt
 function sheetAddLesson(k){const c=cls(UI.edtId);const [d,s]=k.split("-").map(Number);
   const opts=needOf(c).map(x=>{const pl=placedCount(c.id,x.m);const pid=(S.aff[c.id]||{})[x.m];const ok=canPut(c.id,k,pid,roomFor(c.id,x.m));return {...x,pl,pid,ok}});
   openSheet(`<h3>Ajouter un cours · ${esc(c.nom)}</h3><p class="muted small" style="margin:0">${JOURS[d]} · ${S.creneaux[s].debut} – ${S.creneaux[s].fin}</p>
-  <div class="list">${opts.map(o=>{const m=mat(o.m);const p=prof(o.pid);return `<button class="item" data-act="addLesson" data-k="${k}" data-m="${o.m}" ${o.ok===true?"":"disabled style='opacity:.5;cursor:default'"}><span class="mat" style="${hcode(m.h)}">${esc(m.code)}</span><span class="grow"><b>${esc(m.nom)}</b><span>${esc(p?.nom||"Sans professeur")} ${o.ok!==true?"· "+o.ok:""}</span></span><span class="chip ${o.pl<o.h?"warn":"ok"}">${o.pl}/${o.h} h</span></button>`}).join("")}</div>
+  <div class="list">${opts.map(o=>{const m=mat(o.m);const p=prof(o.pid);return `<button class="item" data-act="addLesson" data-k="${k}" data-m="${o.m}" ${o.ok===true?"":"disabled style='opacity:.5;cursor:default'"}><span class="mat" style="${hcode(m.h)}">${esc(m.code)}</span><span class="grow"><b>${esc(m.nom)}</b><span>${esc(p?.nom||"Sans professeur")} ${o.ok!==true?"· "+o.ok:""}</span></span><span class="chip ${o.pl<o.h?"warn":"ok"}">${fmtH(o.pl)} / ${fmtH(o.h)}</span></button>`}).join("")}</div>
   <button class="btn" data-act="close">Fermer</button>`)}
 
 /* ===================== Édition manuelle ===================== */
-function canPut(cid,k,pid,rid){const [d,s]=k.split("-").map(Number);if(isOff(d,s))return "créneau fermé";
-  if(pid){const p=prof(pid);if(p?.indispo[k])return shortName(p.nom)+" indisponible";
-    for(const c of S.classes){if(c.id===cid)continue;const v=(S.sched[c.id]||{})[k];if(v&&v.p===pid)return shortName(p?.nom)+" déjà en "+c.nom}}
-  if(rid){const c=roomBusy(rid,k,cid);if(c)return salleNom(rid)+" occupée par "+c.nom}
+function canPut(cid,k,pid,rid,w){const [d,sl]=BKEY(k).split("-").map(Number);if(isOff(d,sl))return "créneau fermé";const mk=w==="A"?1:w==="B"?2:3;
+  if(pid){const p=prof(pid);if(p?.indispo[BKEY(k)])return shortName(p.nom)+" indisponible";
+    if(profMask(pid,BKEY(k),cid)&mk){const c=S.classes.find(c=>c.id!==cid&&itemsAt(c.id,BKEY(k)).some(v=>v.p===pid&&(MASK(v)&mk)));return shortName(p?.nom)+" déjà en "+(c?.nom||"cours")}}
+  if(rid&&(roomMask(rid,BKEY(k),cid)&mk)){const c=S.classes.find(c=>c.id!==cid&&itemsAt(c.id,BKEY(k)).some(v=>v.r===rid&&(MASK(v)&mk)));return salleNom(rid)+" occupée par "+(c?.nom||"une autre classe")}
   return true}
-// Peut-on déplacer le cours de la case a vers k (échange si k est occupée) ?
-function moveCheck(cid,a,k){const sc=S.sched[cid]||{};const A=sc[a],B=sc[k];if(!A||a===k)return "same";
-  const r1=canPut(cid,k,A.p,A.r);if(r1!==true)return mat(A.m)?.code+" : "+r1;
-  if(B){const r2=canPut(cid,a,B.p,B.r);if(r2!==true)return mat(B.m)?.code+" : "+r2}
+// Peut-on déplacer le contenu de la case a vers k (échange si k est occupée) ?
+function moveCheck(cid,a,k){const A=itemsAt(cid,a),B=itemsAt(cid,k);if(!A.length||a===k)return "same";
+  for(const v of A){const r=canPut(cid,k,v.p,v.r,v.w);if(r!==true)return mat(v.m)?.code+" : "+r}
+  for(const v of B){const r=canPut(cid,a,v.p,v.r,v.w);if(r!==true)return mat(v.m)?.code+" : "+r}
   return true}
+function swapBundles(sc,a,k){const A=[sc[a],sc[a+"/B"]],B=[sc[k],sc[k+"/B"]];
+  [[a,B],[k,A]].forEach(([key,vals])=>{if(vals[0])sc[key]=vals[0];else delete sc[key];if(vals[1])sc[key+"/B"]=vals[1];else delete sc[key+"/B"]})}
 function cellTap(k){const cid=UI.edtId;const sc=S.sched[cid]=S.sched[cid]||{};
-  if(!UI.sel){if(sc[k]){UI.sel={k};render()}else sheetAddLesson(k);return}
+  if(!UI.sel){if(itemsAt(cid,k).length){UI.sel={k};render()}else sheetAddLesson(k);return}
   const a=UI.sel.k;if(a===k){UI.sel=null;render();return}
   const r=moveCheck(cid,a,k);if(r!==true){toast("Impossible : "+r);return}
-  const A=sc[a],B=sc[k];if(B){sc[a]=B}else delete sc[a];sc[k]=A;UI.sel=null;save();render();toast(B?"Cours échangés":"Cours déplacé")}
+  const hadB=itemsAt(cid,k).length;swapBundles(sc,a,k);UI.sel=null;save();render();toast(hadB?"Cours échangés":"Cours déplacé")}
 
 /* ===================== Changement d'horaire en cours d'année ===================== */
 function snapshot(label){if(!Object.keys(S.sched||{}).length)return;
@@ -946,25 +994,26 @@ function snapshot(label){if(!Object.keys(S.sched||{}).length)return;
 const keyLbl=k=>{const [d,s]=k.split("-").map(Number);return JOURS[d].charAt(0)+JOURS[d].slice(1).toLowerCase()+" "+S.creneaux[s]?.debut};
 // Cherche une nouvelle place pour chaque cours touché par les nouvelles indisponibilités
 function planChange(pid,newInd){
-  const work=JSON.parse(JSON.stringify(S.sched));const N=nS();const P=prof(pid);
-  const busyP=(q,k,except)=>{for(const c of S.classes){if(c.id===except)continue;const v=(work[c.id]||{})[k];if(v&&v.p===q)return true}return false};
-  const busyR=(rid,k,except)=>{const r=salle(rid);if(!r||r.multi)return false;for(const c of S.classes){if(c.id===except)continue;const v=(work[c.id]||{})[k];if(v&&v.r===rid)return true}return false};
+  const work=JSON.parse(JSON.stringify(S.sched));const N=nS();
+  const its=(cid,k)=>{const sc=work[cid]||{};return [sc[k],sc[k+"/B"]].filter(Boolean)};
+  const pm=(q,k,ex)=>{let m=0;for(const c of S.classes){if(c.id===ex)continue;for(const v of its(c.id,k)) if(v.p===q) m|=MASK(v)}return m};
+  const rm=(rid,k,ex)=>{const r=salle(rid);if(!r||r.multi)return 0;let m=0;for(const c of S.classes){if(c.id===ex)continue;for(const v of its(c.id,k)) if(v.r===rid) m|=MASK(v)}return m};
   const indOf=q=>q===pid?newInd:(prof(q)?.indispo||{});
-  const okAt=(cid,v,k)=>{const [d,s]=k.split("-").map(Number);if(isOff(d,s))return false;if(v.p&&(indOf(v.p)[k]||busyP(v.p,k,cid)))return false;if(v.r&&busyR(v.r,k,cid))return false;return true};
-  const sameDay=(cid,m,d,ex)=>Object.entries(work[cid]||{}).some(([k,v])=>v.m===m&&k.split("-")[0]==d&&!ex.includes(k));
-  const conflicts=[];for(const c of S.classes){for(const [k,v] of Object.entries(work[c.id]||{})) if(v.p===pid&&newInd[k]) conflicts.push({c:c.id,k})}
+  const okAt=(cid,v,k)=>{const [d,s]=k.split("-").map(Number);if(isOff(d,s))return false;if(v.p&&(indOf(v.p)[k]||(pm(v.p,k,cid)&MASK(v))))return false;if(v.r&&(rm(v.r,k,cid)&MASK(v)))return false;return true};
+  const sameDay=(cid,m,d,ex)=>Object.entries(work[cid]||{}).some(([k,v])=>v.m===m&&BKEY(k).split("-")[0]==d&&!ex.includes(BKEY(k)));
+  const conflicts=[];for(const c of S.classes){const seen=new Set();for(const [k,v] of Object.entries(work[c.id]||{})){const bk=BKEY(k);if(v.p===pid&&newInd[bk]&&!seen.has(bk)){seen.add(bk);conflicts.push({c:c.id,k:bk})}}}
   const moves=[],fails=[];
-  for(const cf of conflicts){const sc=work[cf.c];const A=sc[cf.k];if(!A)continue;let best=null;
-    for(let d=0;d<5;d++)for(let s=0;s<N;s++){const k=d+"-"+s;if(k===cf.k)continue;const B=sc[k];
-      if(!okAt(cf.c,A,k))continue;
-      if(B){if(B.p===pid&&newInd[cf.k])continue;if(!okAt(cf.c,B,cf.k))continue}
-      let score=B?4:0;if(sameDay(cf.c,A.m,d,[cf.k,k]))score+=6;if(B&&sameDay(cf.c,B.m,+cf.k.split("-")[0],[cf.k,k]))score+=6;
-      if(s===N-1)score+=1.5;if(mat(A.m)?.matin&&grp(s)===3)score+=2;
-      const adj=sc[d+"-"+(s-1)]||sc[d+"-"+(s+1)];if(!B&&!adj)score+=1;
+  for(const cf of conflicts){const sc=work[cf.c];const A=its(cf.c,cf.k);if(!A.length)continue;let best=null;
+    for(let d=0;d<5;d++)for(let s=0;s<N;s++){const k=d+"-"+s;if(k===cf.k)continue;const B=its(cf.c,k);
+      if(!A.every(v=>okAt(cf.c,v,k)))continue;
+      if(!B.every(v=>okAt(cf.c,v,cf.k)))continue;
+      let score=B.length?4:0;if(sameDay(cf.c,A[0].m,d,[cf.k,k]))score+=6;if(B.length&&sameDay(cf.c,B[0].m,+cf.k.split("-")[0],[cf.k,k]))score+=6;
+      if(s===N-1)score+=1.5;if(mat(A[0].m)?.matin&&grp(s)===3)score+=2;
+      if(!B.length&&!its(cf.c,d+"-"+(s-1)).length&&!its(cf.c,d+"-"+(s+1)).length)score+=1;
       if(!best||score<best.score)best={k,score,B}}
-    if(!best){fails.push({c:cf.c,k:cf.k,m:A.m});continue}
-    if(best.B){sc[cf.k]=best.B}else delete sc[cf.k];sc[best.k]=A;
-    moves.push({c:cf.c,from:cf.k,to:best.k,m:A.m,p:A.p,swap:best.B?{m:best.B.m,p:best.B.p}:null})}
+    if(!best){fails.push({c:cf.c,k:cf.k,m:A[0].m});continue}
+    swapBundles(sc,cf.k,best.k);
+    moves.push({c:cf.c,from:cf.k,to:best.k,m:A.map(v=>v.m).join("/"),p:A[0].p,swap:best.B.length?{m:best.B[0].m,p:best.B[0].p}:null})}
   return {work,moves,fails,conflicts:conflicts.length};
 }
 function sheetChange(){
@@ -976,7 +1025,7 @@ function sheetChange(){
   <div id="ch-grid">${changeGrid(pid)}</div>
   <div class="small muted">Case grise avec une classe = cours actuel. Case rouge = nouvelle indisponibilité.</div>
   <div class="row"><button class="btn grow" data-act="close">Annuler</button><button class="btn primary grow" data-act="chPlan">Chercher les solutions</button></div>`)}
-function changeGrid(pid){const N=nS();const cells=Object.fromEntries(profCells(pid).map(x=>[x.k,x]));
+function changeGrid(pid){const N=nS();const cells=Object.fromEntries(Object.entries(groupCells(profCells(pid))).map(([k,l])=>[k,l[0]]));
   let h=`<div class="mini"><div></div>${JOURS.map(j=>`<div>${j.slice(0,3)}</div>`).join("")}`;
   for(let s=0;s<N;s++){h+=`<div class="hh">${S.creneaux[s].debut}</div>`;for(let d=0;d<5;d++){const k=d+"-"+s;
     if(isOff(d,s)){h+=`<button class="x" disabled aria-label="Fermé"></button>`;continue}
@@ -987,7 +1036,7 @@ function sheetPlan(){const pid=sheetCtx.cp;const P=prof(pid);const plan=planChan
   const touched=new Set([pid]);plan.moves.forEach(mv=>{if(mv.swap?.p)touched.add(mv.swap.p)});
   openSheet(`<h3>Solutions pour ${esc(P.nom)}</h3>
   ${plan.conflicts?`<p class="small muted" style="margin:0">${plan.conflicts} cours touché${plan.conflicts>1?"s":""} par le changement.</p>`:`<div class="tip"><div><b>Aucun cours à déplacer</b>Les nouvelles indisponibilités tombent sur des heures libres. Elles seront enregistrées pour les prochaines générations.</div></div>`}
-  ${plan.moves.length?`<div class="list">${plan.moves.map(mv=>{const m=mat(mv.m),c=cls(mv.c);return `<div class="item" style="cursor:default"><span class="mat" style="${hcode(m.h)}">${esc(m.code)}</span><span class="grow"><b>${esc(c.nom)} : ${keyLbl(mv.from)} → ${keyLbl(mv.to)}</b><span>${mv.swap?"Échangé avec "+esc(mat(mv.swap.m)?.code)+" ("+esc(shortName(prof(mv.swap.p)?.nom)||"sans prof")+")":"Vers une heure libre"}</span></span></div>`}).join("")}</div>`:""}
+  ${plan.moves.length?`<div class="list">${plan.moves.map(mv=>{const m=mat(mv.m.split("/")[0]),c=cls(mv.c);return `<div class="item" style="cursor:default"><span class="mat" style="${hcode(m.h)}">${esc(mv.m.split("/").map(x=>mat(x)?.code).join("/"))}</span><span class="grow"><b>${esc(c.nom)} : ${keyLbl(mv.from)} → ${keyLbl(mv.to)}</b><span>${mv.swap?"Échangé avec "+esc(mat(mv.swap.m)?.code)+" ("+esc(shortName(prof(mv.swap.p)?.nom)||"sans prof")+")":"Vers une heure libre"}</span></span></div>`}).join("")}</div>`:""}
   ${plan.fails.length?`<div class="banner" style="background:var(--danger-soft)"><span><b style="color:var(--danger)">${plan.fails.length} cours sans solution automatique :</b> ${plan.fails.map(f=>esc(cls(f.c)?.nom)+" "+esc(mat(f.m)?.code)+" ("+keyLbl(f.k)+")").join(", ")}. Ils resteront à leur place ; déplacez-les à la main.</span></div>`:""}
   ${plan.moves.length?`<div class="small muted">Professeurs concernés : ${[...touched].map(q=>esc(prof(q)?.nom||"")).join(", ")}. Pensez à les prévenir.</div>`:""}
   <label class="f">Applicable à partir du<input id="ch-date" placeholder="ex : lundi 9 novembre"></label>
@@ -1022,20 +1071,24 @@ function pdfPage(doc,kind,id,first){
   let title,info;
   if(kind==="classe"){const c=cls(id);const pp=prof(c.pp);
     title="EMPLOI DU TEMPS  —  CLASSE DE "+c.nom;
-    info=["Effectif : "+(c.effectif||"-"),"Professeur principal : "+(pp?.nom||"-"),c.salle?"Salle : "+salleNom(c.salle):"",classHours(c)+" h / semaine"].filter(Boolean).join("     ");
+    info=["Effectif : "+(c.effectif||"-"),"Professeur principal : "+(pp?.nom||"-"),c.salle?"Salle : "+salleNom(c.salle):"",fmtH(classHours(c))+" / semaine"].filter(Boolean).join("     ");
   }else{const p=prof(id);
     title="EMPLOI DU TEMPS  —  "+(p.sexe==="F"?"MME ":"M. ")+p.nom.toUpperCase();
     info=["Discipline : "+p.mats.map(m=>mat(m)?.code).join(", "),"Statut : "+p.statut,"Diplôme : "+(p.diplome||"-"),p.matricule?"Matricule : "+p.matricule:"",p.tel?"Tél : "+p.tel:""].filter(Boolean).join("     ");}
   doc.setFont("helvetica","bold");doc.setFontSize(10.5);doc.setTextColor(...ACC);doc.text(pdfTxt(title),W/2,29.5,{align:"center"});
   doc.setTextColor(20);doc.setFont("helvetica","normal");doc.setFontSize(6.8);doc.text(pdfTxt(info),W/2,33.8,{align:"center",maxWidth:W-2*M});
-  const N=nS();const body=[];let lookup;
-  if(kind==="classe"){const home=cls(id)?.salle;lookup=k=>{const v=(S.sched[id]||{})[k];if(!v)return null;const m=mat(v.m);return {t:(m?.code||"")+(v.r?" · "+salleNom(v.r):"")+"\n"+shortName(prof(v.p)?.nom||""),h:m?.h}}}
-  else{const pc=Object.fromEntries(profCells(id).map(x=>[x.k,x]));lookup=k=>{const v=pc[k];if(!v)return null;const m=mat(v.m);return {t:(cls(v.c)?.nom||"")+"\n"+(m?.code||"")+(v.r?" · "+salleNom(v.r):""),h:m?.h}}}
+  const N=nS();const body=[];let lookup,anyHalf=false;
+  if(kind==="classe"){lookup=k=>{const it=itemsAt(id,k);if(!it.length)return null;
+    if(it.length===1&&!it[0].w){const v=it[0],m=mat(v.m);return {t:(m?.code||"")+(v.r?" · "+salleNom(v.r):"")+"\n"+shortName(prof(v.p)?.nom||""),h:m?.h}}
+    return {t:it.sort((a,b)=>a.w.localeCompare(b.w)).map(v=>"Sem. "+v.w+" : "+(mat(v.m)?.code||"")+" "+shortName(prof(v.p)?.nom||"")).join("\n")+(it.length===1?"\nSem. "+(it[0].w==="A"?"B":"A")+" : libre":"")+(it[0].r?"\n"+salleNom(it[0].r):""),h:mat(it[0].m)?.h,half:true}}}
+  else{const pc=groupCells(profCells(id));lookup=k=>{const it=pc[k];if(!it)return null;
+    if(it.length===1&&!it[0].w){const v=it[0],m=mat(v.m);return {t:(cls(v.c)?.nom||"")+"\n"+(m?.code||"")+(v.r?" · "+salleNom(v.r):""),h:m?.h}}
+    return {t:it.sort((a,b)=>a.w.localeCompare(b.w)).map(v=>"Sem. "+v.w+" : "+(cls(v.c)?.nom||"")+" "+(mat(v.m)?.code||"")+(v.r?" · "+salleNom(v.r):"")).join("\n")+(it.length===1?"\nSem. "+(it[0].w==="A"?"B":"A")+" : libre":""),h:mat(it[0].m)?.h,half:true}}}
   for(let s=0;s<N;s++){const bl=breakLabel(s);
     if(bl) body.push([{content:pdfTxt(bl.toUpperCase()),colSpan:6,styles:{halign:"center",fontSize:5,textColor:120,fillColor:[244,247,245],cellPadding:0.5,minCellHeight:3.2}}]);
     const cr=S.creneaux[s];const row=[cr.debut+"\n"+cr.fin];
     for(let d=0;d<5;d++){const k=d+"-"+s;if(isOff(d,s)){row.push({content:"",styles:{fillColor:[236,239,237]}});continue}
-      const v=lookup(k);row.push(v?{content:pdfTxt(v.t),styles:{fillColor:hslToRgb(v.h||0,70,91),fontStyle:"bold"}}:"")}
+      const v=lookup(k);if(v&&v.half)anyHalf=true;row.push(v?{content:pdfTxt(v.t),styles:{fillColor:hslToRgb(v.h||0,70,91),fontStyle:"bold"}}:"")}
     body.push(row)}
   doc.autoTable({startY:36.5,head:[["HORAIRE",...JOURS]],body,theme:"grid",margin:{left:M,right:M,bottom:14},
     styles:{fontSize:6.6,halign:"center",valign:"middle",lineColor:[190,200,195],lineWidth:.15,textColor:20,cellPadding:0.7,minCellHeight:8,overflow:"linebreak"},
@@ -1044,9 +1097,10 @@ function pdfPage(doc,kind,id,first){
   let y=doc.lastAutoTable.finalY+3.6;doc.setFontSize(6.2);doc.setTextColor(40);
   let sum;
   if(kind==="prof"){const p=prof(id);const {rows,total,sup,ppOf}=profRecap(p);
-    sum="Récapitulatif :  "+rows.map(r=>Object.values(r.cl).map(c=>c.nom).join("/")+" ("+(mat(r.m)?.code||"")+") "+r.h+"h").join("  ·  ")+
-      "     |     Total : "+total+" h     Heures sup. : "+sup+" h"+(ppOf?"     Professeur principal : "+ppOf:"");
-  }else{const c=cls(id);sum="Disciplines :  "+needOf(c).map(x=>(mat(x.m)?.code||x.m)+" "+x.h+"h ("+(shortName(prof((S.aff[c.id]||{})[x.m])?.nom)||"-")+")").join("  ·  ")}
+    sum="Récapitulatif :  "+rows.map(r=>Object.values(r.cl).map(c=>c.nom).join("/")+" ("+(mat(r.m)?.code||"")+") "+fmtH(r.h).replace(" ","")).join("  ·  ")+
+      "     |     Total : "+fmtH(total)+"     Heures sup. : "+fmtH(sup)+(ppOf?"     Professeur principal : "+ppOf:"");
+  }else{const c=cls(id);sum="Disciplines :  "+needOf(c).map(x=>(mat(x.m)?.code||x.m)+" "+fmtH(x.h).replace(" ","")+" ("+(shortName(prof((S.aff[c.id]||{})[x.m])?.nom)||"-")+")").join("  ·  ")}
+  if(anyHalf) sum+="     |     Sem. A / Sem. B : cours une semaine sur deux (1h30).";
   doc.setFont("helvetica","normal");const sl=doc.splitTextToSize(pdfTxt(sum),W-2*M).slice(0,3);doc.text(sl,M,y);
   const fy=H-8;doc.setTextColor(20);
   doc.setFont("helvetica","bolditalic");doc.setFontSize(6.8);doc.text(pdfTxt(e.devise||""),M,fy);
@@ -1147,9 +1201,9 @@ document.addEventListener("click",async e=>{
     case "goClass": UI.edtMode="classe";UI.edtId=v;UI.sel=null;render();break;
     case "cell": cellTap(t.dataset.k);break;
     case "cancelSel": UI.sel=null;render();break;
-    case "clearCell": delete (S.sched[UI.edtId]||{})[UI.sel.k];UI.sel=null;save();render();toast("Cours retiré");break;
+    case "clearCell": delete (S.sched[UI.edtId]||{})[UI.sel.k];delete (S.sched[UI.edtId]||{})[UI.sel.k+"/B"];UI.sel=null;save();render();toast("Cours retiré");break;
     case "addLesson":{const k=t.dataset.k,m=t.dataset.m;const pid=(S.aff[UI.edtId]||{})[m]||null;
-      (S.sched[UI.edtId]=S.sched[UI.edtId]||{})[k]={m,p:pid&&prof(pid)?pid:null,r:roomFor(UI.edtId,m)};save();closeSheet();render();toast("Cours ajouté");break}
+      {const need=(+((S.grille[cls(UI.edtId).niveau]||{})[m])||0)-placedCount(UI.edtId,m);const cell={m,p:pid&&prof(pid)?pid:null,r:roomFor(UI.edtId,m)};if(need>0&&need<1)cell.w="A";(S.sched[UI.edtId]=S.sched[UI.edtId]||{})[k]=cell}save();closeSheet();render();toast("Cours ajouté");break}
     case "addSlot":{const l=S.creneaux[S.creneaux.length-1];S.creneaux.push({debut:l?l.fin:"07H00",fin:"",g:l?l.g:1});save();render();break}
     case "delSlot":{const i=+t.dataset.i;confirmBox("Supprimer ce créneau ? Les cours placés à cette heure seront retirés.","Supprimer",()=>{
       const shift=o=>{const n={};for(const k in o){const [d,s]=k.split("-").map(Number);if(s===i)continue;n[d+"-"+(s>i?s-1:s)]=o[k]}return n};
@@ -1170,7 +1224,7 @@ document.addEventListener("click",async e=>{
 document.addEventListener("change",e=>{const t=e.target;const a=t.dataset?.act;
   if(a==="etab"){S.etab[t.dataset.k]=t.value.trim();save();if(["nom","annee","dren","sigle"].includes(t.dataset.k)){const y=scrollY;render();scrollTo(0,y)}}
   else if(a==="slot"){const c=S.creneaux[+t.dataset.i];c[t.dataset.k]=t.dataset.k==="g"?+t.value:t.value.toUpperCase().replace(":","H");save()}
-  else if(a==="vol"){const g=S.grille[t.dataset.n]=S.grille[t.dataset.n]||{};const n=Math.max(0,+t.value||0);if(n)g[t.dataset.m]=n;else delete g[t.dataset.m];save();render()}
+  else if(a==="vol"){const g=S.grille[t.dataset.n]=S.grille[t.dataset.n]||{};const n=Math.max(0,Math.round((parseFloat(String(t.value).replace(",","."))||0)*2)/2);if(n)g[t.dataset.m]=n;else delete g[t.dataset.m];save();render()}
   else if(a==="setAff"){(S.aff[t.dataset.c]=S.aff[t.dataset.c]||{})[t.dataset.m]=t.value||undefined;if(!t.value)delete S.aff[t.dataset.c][t.dataset.m];save();render()}
   else if(a==="edtPick"){UI.edtId=t.value;UI.sel=null;render()}
   else if(a==="chProf"){sheetCtx={cp:t.value};sheetChange()}
