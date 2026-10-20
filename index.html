@@ -1,0 +1,890 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Kalanso</title>
+<meta name="description" content="Kalanso génère automatiquement les emplois du temps des classes et des professeurs des établissements de Côte d'Ivoire.">
+<meta name="theme-color" content="#176B4D">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icons/favicon.png" type="image/png">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Kalanso">
+<style>:root{padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}body{margin:0;font:14px system-ui,sans-serif}img{max-width:100%}[hidden]{display:none!important}</style>
+<script>window.KALANSO_STANDALONE=true</script>
+</head>
+<body>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,800&family=Figtree:wght@400;500;600;700&family=JetBrains+Mono:wght@500&display=swap">
+<script src="vendor/jspdf.umd.min.js"></script>
+<script src="vendor/jspdf.plugin.autotable.min.js"></script>
+<style>
+/* Layout: application mobile — barre du haut collante, contenu en cartes, navigation à 5 onglets en bas */
+:root{
+  --bg:#F2F5F1; --surface:#FFFFFF; --sunk:#E8EEE9; --ink:#14221C; --muted:#5A6A61; --line:#D7E0DA;
+  --accent:#176B4D; --accent-ink:#FFFFFF; --accent-soft:#DDEFE6; --warm:#D26D14; --warm-soft:#FBE9D8;
+  --danger:#B3261E; --danger-soft:#F9E1DF; --ok:#25774A;
+  --cs:62%; --cl:89%; --cell-ink:#14221C; --off:#E4E9E5;
+  --f-display:"Bricolage Grotesque", "Trebuchet MS", system-ui, sans-serif;
+  --f-body:"Figtree", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --f-mono:"JetBrains Mono", ui-monospace, Menlo, monospace;
+  --r:14px;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#0E1512; --surface:#16201B; --sunk:#1C2822; --ink:#E5EEE9; --muted:#93A49A; --line:#2A3831;
+  --accent:#5CC398; --accent-ink:#06130D; --accent-soft:#1D3A2D; --warm:#F0A35E; --warm-soft:#3A2817;
+  --danger:#F2867E; --danger-soft:#3B1C1A; --ok:#6FD39C;
+  --cs:32%; --cl:25%; --cell-ink:#EEF4F0; --off:#121A16; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#0E1512; --surface:#16201B; --sunk:#1C2822; --ink:#E5EEE9; --muted:#93A49A; --line:#2A3831;
+  --accent:#5CC398; --accent-ink:#06130D; --accent-soft:#1D3A2D; --warm:#F0A35E; --warm-soft:#3A2817;
+  --danger:#F2867E; --danger-soft:#3B1C1A; --ok:#6FD39C;
+  --cs:32%; --cl:25%; --cell-ink:#EEF4F0; --off:#121A16; color-scheme:dark}
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--ink);font-family:var(--f-body);font-size:15px;line-height:1.45;-webkit-tap-highlight-color:transparent}
+body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset-top,0px);z-index:30;background:var(--accent)}
+button,input,select,textarea{font:inherit;color:inherit}
+:focus-visible{outline:2px solid var(--warm);outline-offset:2px}
+.top{position:sticky;top:env(safe-area-inset-top,0px);z-index:20;background:var(--accent);color:var(--accent-ink);
+  padding-block:12px 14px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));
+  display:flex;align-items:center;gap:12px}
+.top .logo{width:38px;height:38px;border-radius:10px;background:var(--accent-ink);color:var(--accent);display:grid;place-items:center;font-family:var(--f-display);font-weight:800;font-size:15px;flex:none}
+.top h1{font-family:var(--f-display);font-weight:800;font-size:18px;margin:0;line-height:1.1;text-wrap:balance}
+.top small{display:block;opacity:.8;font-size:12px;font-weight:500}
+.top .grow{min-width:0;flex:1}
+.top .grow h1,.top .grow small{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+main{padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));
+  padding-block:16px calc(96px + env(safe-area-inset-bottom,0px));max-width:980px;margin:0 auto;display:flex;flex-direction:column;gap:16px}
+nav.tabs{position:fixed;left:0;right:0;bottom:0;z-index:20;background:var(--surface);border-top:1px solid var(--line);
+  display:grid;grid-template-columns:repeat(5,1fr);padding-bottom:env(safe-area-inset-bottom,0px);
+  padding-left:env(safe-area-inset-left,0px);padding-right:env(safe-area-inset-right,0px)}
+nav.tabs button{background:none;border:0;padding:9px 2px 10px;display:flex;flex-direction:column;align-items:center;gap:3px;font-size:11.5px;font-weight:600;color:var(--muted);cursor:pointer}
+nav.tabs button svg{width:22px;height:22px}
+nav.tabs button[aria-current="true"]{color:var(--accent)}
+nav.tabs button[aria-current="true"] .pill{background:var(--accent-soft)}
+nav.tabs .pill{padding:3px 16px;border-radius:99px;display:grid;place-items:center}
+h2{font-family:var(--f-display);font-weight:800;font-size:22px;margin:0;line-height:1.15;text-wrap:balance}
+h3{font-family:var(--f-display);font-weight:600;font-size:17px;margin:0;text-wrap:balance}
+.muted{color:var(--muted)}
+.small{font-size:13px}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:16px;display:flex;flex-direction:column;gap:12px;min-width:0}
+.row{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+.row .grow{flex:1;min-width:0}
+.btn{border:1px solid var(--line);background:var(--surface);border-radius:11px;padding:10px 14px;font-weight:600;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;gap:6px;min-height:44px}
+.btn.primary{background:var(--accent);color:var(--accent-ink);border-color:var(--accent)}
+.btn.warm{background:var(--warm);color:#fff;border-color:var(--warm)}
+.btn.ghost{background:transparent}
+.btn.danger{color:var(--danger);border-color:var(--danger)}
+.btn.block{width:100%}
+.btn.big{min-height:54px;font-size:16px}
+.btn:disabled{opacity:.5;cursor:default}
+.seg{display:flex;background:var(--sunk);border-radius:12px;padding:4px;gap:4px;overflow-x:auto}
+.seg button{flex:1;border:0;background:transparent;padding:9px 10px;border-radius:9px;font-weight:600;font-size:14px;white-space:nowrap;cursor:pointer;color:var(--muted)}
+.seg button[aria-pressed="true"]{background:var(--surface);color:var(--ink);box-shadow:0 1px 2px rgb(0 0 0 / .12)}
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px}
+.stat{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:12px 14px}
+.stat b{display:block;font-family:var(--f-display);font-size:28px;font-weight:800;font-variant-numeric:tabular-nums;line-height:1.1}
+.stat span{font-size:13px;color:var(--muted)}
+.steps{display:flex;flex-direction:column;gap:0;counter-reset:st}
+.step{display:flex;gap:12px;align-items:center;padding:12px 0;border-top:1px solid var(--line);background:none;border-left:0;border-right:0;border-bottom:0;text-align:left;cursor:pointer;width:100%}
+.step:first-child{border-top:0}
+.step .n{width:30px;height:30px;border-radius:50%;display:grid;place-items:center;font-weight:700;font-size:14px;background:var(--sunk);color:var(--muted);flex:none}
+.step.done .n{background:var(--accent);color:var(--accent-ink)}
+.step .t{flex:1;min-width:0}
+.step .t b{display:block;font-weight:600}
+.step .t span{font-size:13px;color:var(--muted)}
+.list{display:flex;flex-direction:column}
+.item{display:flex;gap:12px;align-items:center;padding:11px 0;border-top:1px solid var(--line);cursor:pointer;background:none;border-left:0;border-right:0;border-bottom:0;text-align:left;width:100%}
+.item:first-child{border-top:0}
+.item .grow{flex:1;min-width:0}
+.item .grow b{display:block;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.item .grow span{font-size:13px;color:var(--muted);display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.chip{display:inline-flex;align-items:center;gap:4px;padding:3px 9px;border-radius:99px;font-size:12px;font-weight:700;background:var(--sunk);color:var(--muted);white-space:nowrap}
+.chip.ok{background:var(--accent-soft);color:var(--accent)}
+.chip.warn{background:var(--warm-soft);color:var(--warm)}
+.chip.bad{background:var(--danger-soft);color:var(--danger)}
+.mat{display:inline-grid;place-items:center;min-width:44px;padding:4px 8px;border-radius:8px;font-weight:700;font-size:12.5px;background:hsl(var(--h) var(--cs) var(--cl));color:var(--cell-ink)}
+.bar{height:6px;border-radius:9px;background:var(--sunk);overflow:hidden;width:72px;flex:none}
+.bar i{display:block;height:100%;background:var(--accent)}
+.bar i.over{background:var(--danger)}
+.banner{background:var(--warm-soft);color:var(--ink);border-radius:var(--r);padding:12px 14px;display:flex;gap:10px;align-items:center;flex-wrap:wrap;font-size:14px}
+.banner b{color:var(--warm)}
+label.f{display:flex;flex-direction:column;gap:5px;font-size:13px;font-weight:600;color:var(--muted);min-width:0}
+label.f input,label.f select,label.f textarea,.in{border:1px solid var(--line);background:var(--bg);border-radius:10px;padding:10px 12px;font-size:15px;color:var(--ink);font-weight:500;min-height:44px;width:100%}
+.grid2{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px}
+.check{display:flex;gap:10px;align-items:flex-start;font-size:14px;cursor:pointer}
+.check input{width:20px;height:20px;accent-color:var(--accent);margin-top:1px;flex:none}
+.scroll{overflow-x:auto;-webkit-overflow-scrolling:touch;margin:0 -16px;padding:0 16px}
+table.edt{border-collapse:separate;border-spacing:3px;width:100%;min-width:560px;table-layout:fixed}
+table.edt th{font-size:11.5px;font-weight:700;letter-spacing:.06em;color:var(--muted);padding:6px 2px;text-transform:uppercase}
+table.edt th.h{width:74px}
+table.edt td.h{font-family:var(--f-mono);font-size:10.5px;color:var(--muted);text-align:center;line-height:1.25;padding:2px}
+table.edt td.c{height:50px;border-radius:9px;background:var(--sunk);text-align:center;vertical-align:middle;padding:3px 2px;cursor:pointer;position:relative;border:2px solid transparent}
+table.edt td.c.f{background:hsl(var(--h) var(--cs) var(--cl));color:var(--cell-ink)}
+table.edt td.c.off{background:repeating-linear-gradient(135deg,var(--off) 0 6px,transparent 6px 12px);cursor:default}
+table.edt td.c.sel{border-color:var(--warm);box-shadow:0 0 0 2px var(--warm-soft)}
+table.edt td.c.drop{border-style:dashed;border-color:var(--accent)}
+table.edt td.c b{display:block;font-size:13px;font-weight:700;line-height:1.15}
+table.edt td.c span{display:block;font-size:10.5px;opacity:.82;line-height:1.15;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+table.edt td.brk{font-size:10.5px;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);text-align:center;padding:3px;background:none}
+.fiche{display:flex;flex-direction:column;gap:12px}
+.fiche-head{display:grid;grid-template-columns:1fr auto;gap:8px;font-size:12px;border:1.5px solid var(--ink);border-radius:12px;padding:10px 12px}
+.fiche-head .r{text-align:right}
+.fiche-head b{font-weight:700}
+.fiche-title{font-family:var(--f-display);font-weight:800;text-align:center;font-size:16px;letter-spacing:.04em;border:1.5px solid var(--ink);border-radius:6px;padding:6px;align-self:center}
+.kv{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:4px 14px;font-size:13px}
+.kv div span{color:var(--muted)}
+table.rec{border-collapse:collapse;width:100%;font-size:13px;min-width:420px}
+table.rec th,table.rec td{border:1px solid var(--line);padding:6px 8px;text-align:left}
+table.rec th{background:var(--sunk);font-size:12px;color:var(--muted)}
+table.rec td.n{text-align:right;font-variant-numeric:tabular-nums;font-family:var(--f-mono);font-size:12px}
+table.vol{border-collapse:separate;border-spacing:0;font-size:13px}
+table.vol th,table.vol td{padding:4px;border-bottom:1px solid var(--line);white-space:nowrap}
+table.vol th{font-size:12px;color:var(--muted);position:sticky;top:0;background:var(--surface)}
+table.vol td:first-child,table.vol th:first-child{position:sticky;left:0;background:var(--surface);z-index:1;padding-right:10px}
+table.vol input{width:46px;text-align:center;border:1px solid var(--line);border-radius:8px;padding:7px 2px;background:var(--bg);font-family:var(--f-mono);font-size:13px}
+table.vol tfoot td{font-weight:700;font-family:var(--f-mono);text-align:center}
+.actionbar{position:fixed;left:0;right:0;bottom:calc(64px + env(safe-area-inset-bottom,0px));z-index:19;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:8px}
+.actionbar .in-bar{max-width:640px;margin:0 auto;background:var(--ink);color:var(--bg);border-radius:14px;padding:10px 12px;display:flex;gap:8px;align-items:center;flex-wrap:wrap;box-shadow:0 6px 24px rgb(0 0 0 / .25)}
+.actionbar .in-bar .grow{flex:1;min-width:120px;font-size:13.5px}
+.actionbar .btn{min-height:38px;padding:6px 12px;font-size:13.5px;background:transparent;color:var(--bg);border-color:color-mix(in srgb,var(--bg) 40%,transparent)}
+.scrim{position:fixed;inset:0;background:rgb(0 0 0 / .45);z-index:40;display:flex;align-items:flex-end;justify-content:center}
+.sheet{background:var(--surface);width:100%;max-width:640px;max-height:88%;overflow:auto;border-radius:20px 20px 0 0;
+  padding-block:10px calc(18px + env(safe-area-inset-bottom,0px));padding-left:max(18px,env(safe-area-inset-left,0px));padding-right:max(18px,env(safe-area-inset-right,0px));
+  display:flex;flex-direction:column;gap:14px;animation:up .22s ease-out}
+.sheet .grab{width:42px;height:5px;border-radius:9px;background:var(--line);align-self:center}
+@keyframes up{from{transform:translateY(30px);opacity:.4}to{transform:none;opacity:1}}
+@media (prefers-reduced-motion: reduce){.sheet{animation:none}}
+.toast{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(84px + env(safe-area-inset-bottom,0px));background:var(--ink);color:var(--bg);padding:10px 16px;border-radius:12px;font-size:14px;font-weight:600;z-index:60;max-width:calc(100% - 32px);text-align:center}
+.mini{display:grid;grid-template-columns:52px repeat(5,1fr);gap:3px;font-size:10.5px}
+.mini div{text-align:center;color:var(--muted);font-weight:600;padding:2px}
+.mini button{height:30px;border-radius:7px;border:1px solid var(--line);background:var(--bg);cursor:pointer;font-size:10px;font-weight:700;color:var(--muted)}
+.mini button.on{background:var(--danger-soft);border-color:var(--danger);color:var(--danger)}
+.mini button.x{background:var(--off);border-style:dashed;cursor:default}
+.mini .hh{font-family:var(--f-mono);font-size:9.5px;font-weight:500;text-align:right;padding-top:8px}
+.sw{display:flex;flex-wrap:wrap;gap:6px}
+.sw button{width:32px;height:32px;border-radius:50%;border:2px solid transparent;background:hsl(var(--h) var(--cs) var(--cl));cursor:pointer}
+.sw button[aria-pressed="true"]{border-color:var(--ink)}
+.spin{width:44px;height:44px;border-radius:50%;border:4px solid var(--accent-soft);border-top-color:var(--accent);animation:sp 1s linear infinite;align-self:center}
+@keyframes sp{to{transform:rotate(360deg)}}
+.empty{text-align:center;padding:28px 10px;color:var(--muted);display:flex;flex-direction:column;gap:10px;align-items:center}
+.hero{background:var(--accent);color:var(--accent-ink);border-radius:18px;padding:18px;display:flex;flex-direction:column;gap:10px;position:relative;overflow:hidden}
+.hero h2{font-size:24px}
+.hero p{margin:0;opacity:.9;font-size:14px;max-width:46ch}
+.hero .btn{background:var(--accent-ink);color:var(--accent);border-color:var(--accent-ink);align-self:flex-start}
+.hero .stripe{position:absolute;right:-10px;top:14px;display:flex;flex-direction:column;gap:4px;opacity:.22}
+.hero .stripe i{display:block;width:120px;height:9px;border-radius:5px;background:var(--accent-ink)}
+.sec-title{display:flex;align-items:center;gap:10px;justify-content:space-between;flex-wrap:wrap}
+.top .logo img{width:100%;height:100%;object-fit:contain;border-radius:10px;background:#fff}
+.fiche-head{grid-template-columns:1fr auto 1fr;align-items:center}
+.fiche-head .lg{width:64px;height:64px;display:grid;place-items:center}
+.fiche-head .lg img{max-width:64px;max-height:64px;object-fit:contain}
+@media (max-width:480px){.fiche-head{grid-template-columns:1fr 1fr}.fiche-head .lg{grid-column:1/-1;grid-row:1;justify-self:center}}
+.logo-pick{display:flex;gap:14px;align-items:center;flex-wrap:wrap}
+.logo-pick .prev{width:84px;height:84px;border-radius:14px;border:1.5px dashed var(--line);display:grid;place-items:center;background:var(--bg);overflow:hidden;color:var(--muted);font-size:12px;text-align:center}
+.logo-pick .prev img{width:100%;height:100%;object-fit:contain;background:#fff}
+.welcome{min-height:100%;display:flex;flex-direction:column;gap:22px;justify-content:center;max-width:520px;margin:0 auto;
+  padding-block:40px;padding-left:max(20px,env(safe-area-inset-left,0px));padding-right:max(20px,env(safe-area-inset-right,0px))}
+.welcome .mark{width:76px;height:76px;border-radius:20px;background:var(--accent);display:grid;place-items:center}
+.welcome h1{font-family:var(--f-display);font-weight:800;font-size:40px;margin:0;line-height:1;letter-spacing:-.01em}
+.welcome p{margin:0;font-size:16px;color:var(--muted);max-width:40ch}
+.welcome .gl{font-size:13px;color:var(--muted);border-left:3px solid var(--warm);padding-left:10px}
+.brandline{display:flex;align-items:center;gap:8px;justify-content:center;color:var(--muted);font-size:12.5px;padding-top:4px}
+</style>
+
+<div id="app"></div>
+<input type="file" id="fileIn" accept=".json,application/json" hidden>
+
+<script>
+/* ===================== Données de base ===================== */
+const KEY = "planning-scolaire-ci-v1";
+const JOURS = ["LUNDI","MARDI","MERCREDI","JEUDI","VENDREDI"];
+const NIV = [
+  {id:"6e",l:"6ème",p:"6è"},{id:"5e",l:"5ème",p:"5è"},{id:"4e",l:"4ème",p:"4è"},{id:"3e",l:"3ème",p:"3è"},
+  {id:"2ndeA",l:"2nde A",p:"2nde A"},{id:"2ndeC",l:"2nde C",p:"2nde C"},
+  {id:"1reA",l:"1ère A",p:"1ère A"},{id:"1reC",l:"1ère C",p:"1ère C"},{id:"1reD",l:"1ère D",p:"1ère D"},
+  {id:"TleA",l:"Tle A",p:"Tle A"},{id:"TleC",l:"Tle C",p:"Tle C"},{id:"TleD",l:"Tle D",p:"Tle D"}
+];
+const HUES=[215,190,170,255,28,120,45,300,350,275,330,160,10,90,235];
+const uid=()=>Math.random().toString(36).slice(2,9);
+const esc=s=>String(s??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const nivL=id=>(NIV.find(n=>n.id===id)||{l:id}).l;
+
+const APP="Kalanso";
+function defaultEtab(){return {
+  nom:"",sigle:"",type:"Collège",statut:"Privé laïc",code:"",dren:"",
+  ministere:"MINISTÈRE DE L'ÉDUCATION NATIONALE, DE L'ALPHABÉTISATION ET DE L'ENSEIGNEMENT TECHNIQUE",
+  adresse:"",ville:"",bp:"",tel:"",tel2:"",email:"",site:"",
+  chefTitre:"Directeur",chefNom:"",etudesTitre:"LE DIRECTEUR DES ÉTUDES",etudesNom:"",
+  devise:"Le Succès par le Travail et la Discipline",annee:"2026-2027",applic:"",logo:""}}
+function defaultState(){
+  const mats=[
+    ["FR","Français",215,false,true],["ANG","Anglais",190,false,false],["LV2","Espagnol / Allemand",170,false,false],
+    ["MATH","Mathématiques",255,true,true],["PC","Physique-Chimie",28,true,true],["SVT","SVT",120,true,true],
+    ["HG","Histoire-Géographie",45,false,false],["EDHC","EDHC",300,false,false],["EPS","EPS",350,true,false],
+    ["AP","Arts plastiques / Musique",275,false,false],["PHILO","Philosophie",330,false,false]
+  ].map(([code,nom,h,bloc,matin])=>({id:code,code,nom,h,bloc,matin}));
+  const G=(o)=>o;
+  const c65={FR:5,ANG:4,MATH:4,PC:2,SVT:2,HG:2,EDHC:1,EPS:2,AP:1};
+  const c43={FR:5,ANG:4,LV2:3,MATH:5,PC:3,SVT:2,HG:3,EDHC:1,EPS:2};
+  const grille={
+    "6e":G({...c65}),"5e":G({...c65}),"4e":G({...c43}),"3e":G({...c43}),
+    "2ndeA":{FR:5,ANG:4,LV2:4,MATH:3,PC:2,SVT:2,HG:4,EDHC:1,EPS:2},
+    "2ndeC":{FR:4,ANG:3,LV2:2,MATH:5,PC:4,SVT:3,HG:3,EDHC:1,EPS:2},
+    "1reA":{FR:5,ANG:4,LV2:4,MATH:3,SVT:2,HG:4,EDHC:1,EPS:2,PHILO:4},
+    "1reC":{FR:4,ANG:3,MATH:6,PC:5,SVT:2,HG:2,EDHC:1,EPS:2,PHILO:2},
+    "1reD":{FR:4,ANG:3,MATH:5,PC:4,SVT:5,HG:2,EDHC:1,EPS:2,PHILO:2},
+    "TleA":{FR:4,ANG:4,LV2:4,MATH:3,SVT:2,HG:4,EDHC:1,EPS:2,PHILO:6},
+    "TleC":{FR:3,ANG:3,MATH:7,PC:6,SVT:2,HG:2,EDHC:1,EPS:2,PHILO:3},
+    "TleD":{FR:3,ANG:3,MATH:5,PC:5,SVT:5,HG:2,EDHC:1,EPS:2,PHILO:3}
+  };
+  const cr=[["07H15","08H10",1],["08H10","09H05",1],["09H05","10H00",1],["10H15","11H10",2],["11H10","12H05",2],
+            ["14H00","15H00",3],["15H00","16H00",3],["16H00","17H00",3],["17H00","18H00",3]].map(([debut,fin,g])=>({debut,fin,g}));
+  const off={}; for(let s=5;s<9;s++) off["2-"+s]=true; // mercredi après-midi libre
+  return {v:1,at:0,exemple:false,
+    etab:defaultEtab(),
+    creneaux:cr,off,matieres:mats,grille,classes:[],profs:[],aff:{},sched:{},
+    gen:{bloc2:true,report:null}};
+}
+
+function sampleState(){
+  const S=defaultState(); S.exemple=true;
+  S.etab={...defaultEtab(),nom:"Collège Privé K.A.W de Touih",sigle:"KAW",type:"Collège",statut:"Privé laïc",dren:"San Pedro",code:"054 623",
+    ville:"Touih",tel:"07 49 77 25 42",tel2:"05 65 85 66 35",email:"collegeprivekaw@gmail.com"};
+  const cl=[["6è1","6e",62],["6è2","6e",60],["5è1","5e",58],["5è2","5e",57],["4è1","4e",55],["4è2","4e",54],["3è1","3e",61],["3è2","3e",59],["2nde C","2ndeC",48],["1ère D","1reD",45],["Tle D","TleD",42]];
+  S.classes=cl.map(([nom,niveau,effectif])=>({id:uid(),nom,niveau,effectif,pp:null}));
+  const pr=[["KONAN Aya Rose","F",["FR"]],["N'GUESSAN Brou Désiré","M",["FR"]],["YAO Affoué Clarisse","F",["FR"]],
+    ["KOUASSI Yao Firmin","M",["MATH"]],["DIABATÉ Moussa","M",["MATH"]],["KOFFI Amenan Esther","F",["MATH"]],
+    ["TRAORÉ Mariam","F",["ANG"]],["GNAGNE Serge","M",["ANG"]],["BAMBA Awa","F",["LV2"]],
+    ["OUATTARA Lassina","M",["HG"]],["AKA Jean-Marc","M",["HG","EDHC"]],["KOUAMÉ Ange Flora","F",["SVT"]],["SORO Kolotioloma","M",["SVT"]],
+    ["TCHEA Ange Mares","M",["PC"]],["ZADI Gnahoré Patrice","M",["PC"]],["ASSI Marie-Laure","F",["EDHC"]],
+    ["DOUMBIA Ibrahim","M",["EPS"]],["KOUADIO Innocent","M",["AP"],"VACATAIRE"],["LOROUGNON Pascal","M",["PHILO"],"VACATAIRE"]];
+  S.profs=pr.map(([nom,sexe,mats,statut])=>({id:uid(),nom,sexe,mats,statut:statut||"PERMANENT",diplome:"Licence",tel:"",max:statut?10:24,du:statut?0:18,indispo:{}}));
+  S.classes.forEach((c,i)=>{c.pp=S.profs[i%S.profs.length].id});
+  return S;
+}
+
+/* ===================== Stockage ===================== */
+let S, dbDoc=null, saveT=null, downloads=null;
+function loadLocal(){try{const j=localStorage.getItem(KEY);if(j)return JSON.parse(j)}catch(e){}return null}
+function save(){S.at=Date.now();clearTimeout(saveT);saveT=setTimeout(saveNow,700)}
+async function saveNow(){const json=JSON.stringify(S);try{localStorage.setItem(KEY,json)}catch(e){}
+  if(dbDoc){try{await dbDoc.set({json,at:S.at})}catch(e){}}}
+function migrate(x){const d=defaultState();for(const k in d) if(x[k]===undefined) x[k]=d[k];x.gen={...d.gen,...x.gen};
+  if(x.etab.directeur&&!x.etab.etudesTitre) x.etab.etudesTitre=x.etab.directeur;delete x.etab.directeur;
+  x.etab={...defaultEtab(),...x.etab};
+  x.profs.forEach(p=>{p.matricule=p.matricule||"";p.origine=p.origine||"";p.indispo=p.indispo||{}});
+  x.classes.forEach(c=>{c.salle=c.salle||""});return x}
+
+/* ===================== Utilitaires métier ===================== */
+const nS=()=>S.creneaux.length;
+const isOff=(d,s)=>!!S.off[d+"-"+s];
+const grp=s=>S.creneaux[s]?.g;
+const mat=id=>S.matieres.find(m=>m.id===id);
+const prof=id=>S.profs.find(p=>p.id===id);
+const cls=id=>S.classes.find(c=>c.id===id);
+const hcode=h=>"--h:"+h;
+const shortName=n=>{if(!n)return"";const p=n.split(" ");return p[0]+(p[1]?" "+p[1][0]+".":"")};
+function needOf(c){const g=S.grille[c.niveau]||{};return S.matieres.map(m=>({m:m.id,h:+g[m.id]||0})).filter(x=>x.h>0)}
+function classHours(c){return needOf(c).reduce((a,x)=>a+x.h,0)}
+function profLoadAff(pid){let t=0;for(const c of S.classes){const a=S.aff[c.id]||{};for(const x of needOf(c)) if(a[x.m]===pid) t+=x.h}return t}
+function profCells(pid){const out=[];for(const c of S.classes){const sc=S.sched[c.id]||{};for(const k in sc) if(sc[k].p===pid) out.push({k,c:c.id,m:sc[k].m})}return out}
+function placedCount(cid,mid){const sc=S.sched[cid]||{};let n=0;for(const k in sc) if(sc[k].m===mid) n++;return n}
+function totalNeeded(){return S.classes.reduce((a,c)=>a+classHours(c),0)}
+function totalPlaced(){let n=0;for(const c of S.classes) n+=Object.keys(S.sched[c.id]||{}).length;return n}
+function unassignedCount(){let n=0;for(const c of S.classes){const a=S.aff[c.id]||{};for(const x of needOf(c)) if(!a[x.m]||!prof(a[x.m])) n++}return n}
+function breakLabel(s){const a=S.creneaux[s-1],b=S.creneaux[s];if(!a||!b||a.g===b.g)return null;
+  const mid=parseInt(b.debut)>=13;return (mid?"Pause":"Récréation")+" · "+a.fin+" – "+b.debut}
+function classPrefix(niveau){return (NIV.find(n=>n.id===niveau)||{p:niveau}).p}
+
+/* ===================== Affectation automatique ===================== */
+function autoAssign(keep=true){
+  const load={};S.profs.forEach(p=>load[p.id]=0);
+  if(!keep) S.aff={};
+  // compter l'existant si on garde
+  for(const c of S.classes){S.aff[c.id]=S.aff[c.id]||{};const a=S.aff[c.id];
+    for(const x of needOf(c)){if(a[x.m]&&prof(a[x.m])&&prof(a[x.m]).mats.includes(x.m)) load[a[x.m]]+=x.h; else delete a[x.m]}}
+  const order=[...S.classes].sort((a,b)=>NIV.findIndex(n=>n.id===a.niveau)-NIV.findIndex(n=>n.id===b.niveau));
+  const byNivMat={};
+  for(const c of order){const a=S.aff[c.id];for(const x of needOf(c)) if(a[x.m]) byNivMat[c.niveau+"|"+x.m]=a[x.m]}
+  let warn=0;
+  for(const c of order){const a=S.aff[c.id];
+    for(const x of needOf(c)){ if(a[x.m]) continue;
+      const cands=S.profs.filter(p=>p.mats.includes(x.m));
+      if(!cands.length){warn++;continue}
+      const same=byNivMat[c.niveau+"|"+x.m]; let pick=null;
+      if(same){const p=prof(same);if(p&&load[p.id]+x.h<=p.max) pick=p}
+      if(!pick){const ok=cands.filter(p=>load[p.id]+x.h<=p.max).sort((p,q)=>load[p.id]/p.max-load[q.id]/q.max);pick=ok[0]}
+      if(!pick){pick=cands.sort((p,q)=>load[p.id]-load[q.id])[0];warn++}
+      a[x.m]=pick.id;load[pick.id]+=x.h;byNivMat[c.niveau+"|"+x.m]=pick.id;
+    }}
+  return warn;
+}
+
+/* ===================== Générateur ===================== */
+function buildLessons(){
+  const L=[];
+  for(const c of S.classes){const a=S.aff[c.id]||{};
+    for(const x of needOf(c)){const m=mat(x.m);const p=a[x.m]&&prof(a[x.m])?a[x.m]:null;const ch=[];
+      if(S.gen.bloc2&&m.bloc&&x.h>=2){let r=x.h;while(r>=2){ch.push(2);r-=2}if(r)ch.push(1)}else for(let i=0;i<x.h;i++)ch.push(1);
+      ch.forEach(d=>L.push({c:c.id,m:x.m,p,d,n:ch.length}));}}
+  return L;
+}
+function generate(){
+  const t0=performance.now();const L=buildLessons();const N=nS();const last=N-1;
+  const daysAvail=[0,1,2,3,4].filter(d=>[...Array(N).keys()].some(s=>!isOff(d,s))).length;
+  const pAvail={},pHours={};
+  for(const p of S.profs){let a=0;for(let d=0;d<5;d++)for(let s=0;s<N;s++) if(!isOff(d,s)&&!p.indispo[d+"-"+s]) a++;pAvail[p.id]=a||1;pHours[p.id]=0}
+  L.forEach(l=>{if(l.p)pHours[l.p]+=l.d});
+  let best=null,att=0;
+  while(att<400){att++;
+    const C={},P={},CD={},PD={},MD={};const res={};const un=[];let score=0;
+    const tight=l=>l.p?pHours[l.p]/pAvail[l.p]:0;
+    const ord=L.map(l=>({l,k:(l.d===2?-50:0)-tight(l)*20-(l.n>=4?5:0)+Math.random()*6})).sort((a,b)=>a.k-b.k).map(o=>o.l);
+    const tryPlace=(l,dur,forbidDay)=>{
+      let bestPos=null,bs=1e9;const m=mat(l.m);
+      for(let d=0;d<5;d++){ if(d===forbidDay) continue;
+        const md=MD[l.c+"|"+l.m+"|"+d]||0;const hard=l.n<=daysAvail;
+        if(md&&hard) continue;
+        for(let s=0;s+dur<=N;s++){let ok=true;
+          for(let k=0;k<dur;k++){const ss=s+k;const key=d+"-"+ss;
+            if(isOff(d,ss)||grp(ss)!==grp(s)||C[l.c+"@"+key]){ok=false;break}
+            if(l.p&&(P[l.p+"@"+key]||prof(l.p).indispo[key])){ok=false;break}}
+          if(!ok) continue;
+          let sc=Math.random()*2;
+          sc+=(CD[l.c+"|"+d]||0)*1.4;
+          if(l.p) sc+=(PD[l.p+"|"+d]||0)*0.5;
+          if(md) sc+=8;
+          if(m.matin&&grp(s)===3) sc+=3;
+          if(l.m==="EPS"&&grp(s)!==3&&s!==0) sc+=1.5;
+          if(s+dur-1===last) sc+=1.8;
+          if(C[l.c+"@"+d+"-"+(s-1)]||C[l.c+"@"+d+"-"+(s+dur)]) sc-=1.2;
+          if(sc<bs){bs=sc;bestPos={d,s}}
+        }}
+      if(!bestPos) return null;
+      const {d,s}=bestPos;
+      for(let k=0;k<dur;k++){const key=d+"-"+(s+k);C[l.c+"@"+key]=1;if(l.p)P[l.p+"@"+key]=1;
+        (res[l.c]=res[l.c]||{})[key]={m:l.m,p:l.p}}
+      CD[l.c+"|"+d]=(CD[l.c+"|"+d]||0)+dur;if(l.p)PD[l.p+"|"+d]=(PD[l.p+"|"+d]||0)+dur;
+      MD[l.c+"|"+l.m+"|"+d]=(MD[l.c+"|"+l.m+"|"+d]||0)+1;score+=bs;return d;
+    };
+    for(const l of ord){
+      const d=tryPlace(l,l.d);
+      if(d===null){
+        if(l.d===2){const l1={...l,n:l.n+1};const d1=tryPlace(l1,1);
+          if(d1===null) un.push(l); else if(tryPlace(l1,1,d1)===null) un.push({...l,d:1});}
+        else un.push(l);
+      }}
+    const miss=un.reduce((a,l)=>a+l.d,0);
+    if(!best||miss<best.miss||(miss===best.miss&&score<best.score)) best={res,un,miss,score};
+    const el=performance.now()-t0;
+    if((best.miss===0&&att>=6)||el>2600) break;
+  }
+  S.sched=best.res;
+  S.gen.report={at:Date.now(),miss:best.miss,un:best.un.map(l=>({c:l.c,m:l.m,p:l.p,d:l.d})),att,total:L.reduce((a,l)=>a+l.d,0)};
+  save();return S.gen.report;
+}
+
+/* ===================== Interface ===================== */
+const UI={tab:"home",sub:"classes",edtMode:"classe",edtId:null,sel:null};
+const ICON={
+  home:'<path d="M3 10.5 12 3l9 7.5V20a1 1 0 0 1-1 1h-5v-6h-6v6H4a1 1 0 0 1-1-1z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/>',
+  data:'<path d="M4 6h16M4 12h16M4 18h10" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>',
+  gen:'<path d="M13 2 4 14h7l-1 8 9-12h-7z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/>',
+  edt:'<rect x="3" y="4" width="18" height="17" rx="2" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M3 9h18M9 9v12M15 9v12M8 2v4M16 2v4" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>',
+  set:'<circle cx="12" cy="12" r="3.2" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M12 2.5v3M12 18.5v3M2.5 12h3M18.5 12h3M5.3 5.3l2.1 2.1M16.6 16.6l2.1 2.1M5.3 18.7l2.1-2.1M16.6 7.4l2.1-2.1" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>'
+};
+const app=document.getElementById("app");
+
+function render(){
+  const e=S.etab;
+  if(UI.welcome){app.innerHTML=vWelcome();return}
+  const initials=e.sigle?e.sigle.slice(0,3).toUpperCase():((e.nom||"KA").replace(/[^A-Za-zÀ-ÿ ]/g,"").split(" ").filter(w=>w.length>2).slice(0,2).map(w=>w[0]).join("").toUpperCase()||"KA");
+  app.innerHTML=`
+  <header class="top"><div class="logo">${e.logo?`<img src="${e.logo}" alt="">`:esc(initials)}</div><div class="grow"><h1>${esc(e.nom||APP)}</h1><small>${e.nom?APP+" · ":""}Année scolaire ${esc(e.annee||"")} ${e.dren?"· DREN "+esc(e.dren):""}</small></div></header>
+  <main id="main">${({home:vHome,data:vData,gen:vGen,edt:vEdt,set:vSet})[UI.tab]()}</main>
+  ${UI.tab==="edt"&&UI.sel?vActionBar():""}
+  <nav class="tabs">${[["home","Accueil"],["data","Saisie"],["gen","Générer"],["edt","Emplois"],["set","Réglages"]].map(([k,l])=>
+    `<button data-act="tab" data-v="${k}" aria-current="${UI.tab===k}"><span class="pill"><svg viewBox="0 0 24 24">${ICON[k]}</svg></span>${l}</button>`).join("")}</nav>`;
+}
+
+const MARK=`<svg viewBox="0 0 64 64" width="46" height="46" aria-hidden="true"><rect x="8" y="12" width="48" height="42" rx="7" fill="none" stroke="var(--accent-ink)" stroke-width="4"/><path d="M8 24h48" stroke="var(--accent-ink)" stroke-width="4"/><path d="M20 6v10M44 6v10" stroke="var(--accent-ink)" stroke-width="4" stroke-linecap="round"/><rect x="15" y="30" width="10" height="8" rx="2" fill="var(--accent-ink)"/><rect x="27" y="30" width="10" height="8" rx="2" fill="var(--warm)"/><rect x="39" y="41" width="10" height="8" rx="2" fill="var(--accent-ink)"/><rect x="15" y="41" width="10" height="8" rx="2" fill="var(--accent-ink)" opacity=".45"/></svg>`;
+function vWelcome(){return `<div class="welcome"><div class="mark">${MARK}</div>
+  <div style="display:flex;flex-direction:column;gap:10px"><h1>${APP}</h1><p>Les emplois du temps de tout votre établissement, classes et professeurs, générés en une minute et sans conflit.</p></div>
+  <div style="display:flex;flex-direction:column;gap:10px"><button class="btn primary big block" data-act="wStart">Configurer mon établissement</button>
+  <button class="btn big block" data-act="wSample">Découvrir avec un exemple</button></div>
+  <div class="gl">« Kalanso » signifie « l'école », la maison où l'on apprend, en dioula.</div></div>`}
+
+/* ---------- Accueil ---------- */
+function vHome(){
+  const need=totalNeeded(),placed=totalPlaced(),ua=unassignedCount();
+  const st=[
+    ["set","Établissement et horaires",S.etab.nom?esc(S.etab.nom):"Nom, DREN, créneaux horaires",!!S.etab.nom],
+    ["mats","Matières et volumes horaires",S.matieres.length+" matières",S.matieres.length>0],
+    ["classes","Classes",S.classes.length+" classes · "+need+" h/semaine à placer",S.classes.length>0],
+    ["profs","Professeurs",S.profs.length+" professeurs",S.profs.length>0],
+    ["aff","Affectations (qui enseigne quoi)",ua?ua+" cours sans professeur":"Toutes les matières ont un professeur",S.classes.length>0&&ua===0],
+    ["gen","Génération automatique",S.gen.report?(S.gen.report.miss?S.gen.report.miss+" h non placées":"Tout est placé, sans conflit"):"Pas encore lancée",!!S.gen.report&&S.gen.report.miss===0]
+  ];
+  return `
+  ${S.exemple?`<div class="banner"><span class="grow" style="flex:1;min-width:200px"><b>Données d'exemple.</b> Les professeurs et effectifs sont fictifs, pour vous montrer l'appli. Remplacez-les par ceux de votre établissement.</span><button class="btn" data-act="clearSample">Commencer à zéro</button></div>`:""}
+  <section class="hero"><div class="stripe"><i></i><i style="width:90px"></i><i style="width:105px"></i></div>
+    <h2>Les emplois du temps de tout l'établissement en une minute</h2>
+    <p>Saisissez classes, professeurs et volumes horaires. L'appli répartit les cours sans aucun conflit, puis vous ajustez à la main si besoin.</p>
+    <button class="btn big" data-act="runGen">Générer maintenant</button></section>
+  <div class="stats">
+    <div class="stat"><b>${S.classes.length}</b><span>classes</span></div>
+    <div class="stat"><b>${S.profs.length}</b><span>professeurs</span></div>
+    <div class="stat"><b>${placed}/${need}</b><span>heures placées</span></div>
+    <div class="stat"><b>${S.gen.report?S.gen.report.miss:"–"}</b><span>heures à revoir</span></div>
+  </div>
+  <section class="card"><h3>Étapes</h3><div class="steps">
+    ${st.map(([k,t,s,done],i)=>`<button class="step ${done?"done":""}" data-act="goStep" data-v="${k}"><span class="n">${done?"✓":i+1}</span><span class="t"><b>${t}</b><span>${s}</span></span><span class="muted">›</span></button>`).join("")}
+  </div></section>`;
+}
+
+/* ---------- Saisie ---------- */
+function vData(){
+  const subs=[["classes","Classes"],["profs","Professeurs"],["mats","Matières"],["aff","Affectations"]];
+  return `<div class="seg" role="group">${subs.map(([k,l])=>`<button data-act="sub" data-v="${k}" aria-pressed="${UI.sub===k}">${l}</button>`).join("")}</div>
+  ${({classes:vClasses,profs:vProfs,mats:vMats,aff:vAff})[UI.sub]()}`;
+}
+function vClasses(){
+  const sorted=[...S.classes].sort((a,b)=>NIV.findIndex(n=>n.id===a.niveau)-NIV.findIndex(n=>n.id===b.niveau)||a.nom.localeCompare(b.nom,"fr",{numeric:true}));
+  return `<section class="card"><div class="sec-title"><h3>${S.classes.length} classes</h3><div class="row"><button class="btn" data-act="addMany">+ Plusieurs</button><button class="btn primary" data-act="editClass">+ Classe</button></div></div>
+  ${sorted.length?`<div class="list">${sorted.map(c=>{const p=prof(c.pp);const h=classHours(c);
+    return `<button class="item" data-act="editClass" data-v="${c.id}"><span class="mat" style="--h:${200}">${esc(c.nom)}</span><span class="grow"><b>${esc(nivL(c.niveau))} · ${c.effectif||0} élèves</b><span>${h} h/semaine${p?" · PP : "+esc(p.nom):""}</span></span><span class="muted">›</span></button>`}).join("")}</div>`
+  :`<div class="empty">Aucune classe. Ajoutez-en une, ou plusieurs d'un coup (ex : 6è1 à 6è4).<button class="btn primary" data-act="addMany">Ajouter des classes</button></div>`}</section>`;
+}
+function vProfs(){
+  const sorted=[...S.profs].sort((a,b)=>(a.mats[0]||"").localeCompare(b.mats[0]||"")||a.nom.localeCompare(b.nom));
+  return `<section class="card"><div class="sec-title"><h3>${S.profs.length} professeurs</h3><button class="btn primary" data-act="editProf">+ Professeur</button></div>
+  ${sorted.length?`<div class="list">${sorted.map(p=>{const l=profLoadAff(p.id);const pct=Math.min(100,l/(p.max||1)*100);
+    return `<button class="item" data-act="editProf" data-v="${p.id}"><span class="grow"><b>${esc(p.nom)}</b><span>${p.mats.map(m=>mat(m)?.code||m).join(", ")} · ${p.statut==="VACATAIRE"?"Vacataire":"Permanent"}</span></span>
+      <span style="text-align:right;display:flex;flex-direction:column;align-items:flex-end;gap:4px"><span class="small" style="font-variant-numeric:tabular-nums">${l} / ${p.max} h</span><span class="bar"><i class="${l>p.max?"over":""}" style="width:${pct}%"></i></span></span></button>`}).join("")}</div>`
+  :`<div class="empty">Aucun professeur pour l'instant.<button class="btn primary" data-act="editProf">Ajouter un professeur</button></div>`}</section>`;
+}
+function vMats(){
+  const nivs=NIV.filter(n=>S.classes.some(c=>c.niveau===n.id));
+  const showN=nivs.length?nivs:NIV.slice(0,4);
+  return `<section class="card"><div class="sec-title"><h3>Matières</h3><button class="btn primary" data-act="editMat">+ Matière</button></div>
+  <div class="list">${S.matieres.map(m=>`<button class="item" data-act="editMat" data-v="${m.id}"><span class="mat" style="${hcode(m.h)}">${esc(m.code)}</span><span class="grow"><b>${esc(m.nom)}</b><span>${[m.bloc?"Séances de 2 h":"Séances d'1 h",m.matin?"plutôt le matin":""].filter(Boolean).join(" · ")}</span></span><span class="muted">›</span></button>`).join("")}</div></section>
+  <section class="card"><h3>Volumes horaires par semaine</h3><p class="muted small" style="margin:0">Grille proposée par défaut, à ajuster selon les instructions officielles de votre DREN. Une heure = un créneau.</p>
+  <div class="scroll"><table class="vol"><thead><tr><th>Matière</th>${showN.map(n=>`<th>${esc(n.l)}</th>`).join("")}</tr></thead>
+  <tbody>${S.matieres.map(m=>`<tr><td><span class="mat" style="${hcode(m.h)}">${esc(m.code)}</span></td>${showN.map(n=>`<td><input type="number" min="0" max="12" inputmode="numeric" id="v-${n.id}-${m.id}" data-act="vol" data-n="${n.id}" data-m="${m.id}" value="${(S.grille[n.id]||{})[m.id]||""}"></td>`).join("")}</tr>`).join("")}</tbody>
+  <tfoot><tr><td>Total</td>${showN.map(n=>`<td>${Object.values(S.grille[n.id]||{}).reduce((a,b)=>a+(+b||0),0)} h</td>`).join("")}</tr></tfoot></table></div></section>`;
+}
+function vAff(){
+  if(!S.classes.length) return `<section class="card"><div class="empty">Ajoutez d'abord des classes et des professeurs.</div></section>`;
+  const ua=unassignedCount();
+  return `<section class="card"><div class="sec-title"><div><h3>Qui enseigne quoi</h3><span class="muted small">${ua?ua+" cours sans professeur":"Toutes les matières sont couvertes"}</span></div>
+  <button class="btn primary" data-act="autoAff">Affecter automatiquement</button></div>
+  <p class="muted small" style="margin:0">L'appli répartit les classes entre les professeurs de chaque matière en respectant leur maximum d'heures. Vous pouvez changer chaque choix.</p></section>
+  ${S.classes.map(c=>`<section class="card"><div class="sec-title"><h3>${esc(c.nom)}</h3><span class="chip">${classHours(c)} h</span></div>
+  <div class="list">${needOf(c).map(x=>{const m=mat(x.m);const cur=(S.aff[c.id]||{})[x.m];const cands=S.profs.filter(p=>p.mats.includes(x.m));const others=S.profs.filter(p=>!p.mats.includes(x.m));
+    return `<div class="item" style="cursor:default"><span class="mat" style="${hcode(m.h)}">${esc(m.code)}</span><span class="small muted" style="width:30px">${x.h} h</span>
+    <select class="in" style="flex:1;min-width:0" id="a-${c.id}-${x.m}" data-act="setAff" data-c="${c.id}" data-m="${x.m}">
+      <option value="">— Aucun professeur —</option>
+      ${cands.map(p=>`<option value="${p.id}" ${cur===p.id?"selected":""}>${esc(p.nom)} (${profLoadAff(p.id)}/${p.max} h)</option>`).join("")}
+      ${others.length?`<optgroup label="Autres professeurs">${others.map(p=>`<option value="${p.id}" ${cur===p.id?"selected":""}>${esc(p.nom)}</option>`).join("")}</optgroup>`:""}
+    </select></div>`}).join("")||`<div class="muted small">Aucun volume horaire défini pour ce niveau.</div>`}</div></section>`).join("")}`;
+}
+
+/* ---------- Générer ---------- */
+function vGen(){
+  const r=S.gen.report;const ua=unassignedCount();
+  return `<section class="card"><h2>Génération automatique</h2>
+  <p class="muted" style="margin:0">L'appli place chaque cours de chaque classe. Un professeur n'est jamais dans deux classes à la fois, et ses indisponibilités sont respectées.</p>
+  <label class="check"><input type="checkbox" id="opt-bloc" data-act="optBloc" ${S.gen.bloc2?"checked":""}><span>Regrouper en séances de 2 heures les matières marquées « 2 h » (PC, SVT, Maths, EPS…)</span></label>
+  <div class="small muted">Règles appliquées : une même matière une seule fois par jour dans une classe, matières principales le matin, peu de trous, journées équilibrées.</div>
+  ${ua?`<div class="banner"><span style="flex:1;min-width:200px"><b>${ua} cours sans professeur.</b> Ils seront placés quand même, sans nom de professeur.</span><button class="btn" data-act="autoAff">Affecter automatiquement</button></div>`:""}
+  <button class="btn primary big block" data-act="runGen">Générer tous les emplois du temps</button></section>
+  ${r?`<section class="card"><div class="sec-title"><h3>Dernier résultat</h3><span class="chip ${r.miss?"warn":"ok"}">${r.miss?r.miss+" h à placer à la main":"100 % placé"}</span></div>
+  <div class="small muted">${new Date(r.at).toLocaleString("fr-FR")} · ${r.total-r.miss} h placées sur ${r.total} · ${r.att} essais</div>
+  ${r.un.length?`<p class="small" style="margin:0">Ces cours n'ont pas trouvé de place libre. Allez dans <b>Emplois</b>, touchez une case vide de la classe pour les ajouter, ou réduisez les indisponibilités du professeur.</p>
+  <div class="list">${r.un.map(u=>{const m=mat(u.m),c=cls(u.c),p=prof(u.p);return c&&m?`<button class="item" data-act="openEdt" data-v="${u.c}"><span class="mat" style="${hcode(m.h)}">${esc(m.code)}</span><span class="grow"><b>${esc(c.nom)} · ${u.d} h</b><span>${p?esc(p.nom):"Sans professeur"}</span></span><span class="muted">›</span></button>`:""}).join("")}</div>`:`<button class="btn" data-act="tab" data-v="edt">Voir les emplois du temps</button>`}</section>`:""}`;
+}
+
+/* ---------- Emplois ---------- */
+function vEdt(){
+  const mode=UI.edtMode;const arr=mode==="classe"?S.classes:S.profs;
+  if(!arr.length) return `<section class="card"><div class="empty">Rien à afficher. Ajoutez des ${mode==="classe"?"classes":"professeurs"} puis lancez la génération.</div></section>`;
+  if(!arr.find(x=>x.id===UI.edtId)) UI.edtId=arr[0].id;
+  const id=UI.edtId;
+  return `<div class="seg"><button data-act="edtMode" data-v="classe" aria-pressed="${mode==="classe"}">Par classe</button><button data-act="edtMode" data-v="prof" aria-pressed="${mode==="prof"}">Par professeur</button></div>
+  <div class="row"><select class="in grow" style="flex:1" id="edt-pick" data-act="edtPick">${arr.map(x=>`<option value="${x.id}" ${x.id===id?"selected":""}>${esc(x.nom)}</option>`).join("")}</select>
+  <button class="btn" data-act="pdfOne">PDF</button><button class="btn primary" data-act="pdfAll">Tout en PDF</button></div>
+  ${mode==="classe"?ficheClasse(cls(id)):ficheProf(prof(id))}`;
+}
+function telLine(e){return [e.tel,e.tel2].filter(Boolean).join(" / ")}
+function addrLine(e){return [e.adresse,e.bp,e.ville].filter(Boolean).join(" · ")}
+function ficheHead(title){const e=S.etab;return `<div class="fiche-head"><div><b>${esc(e.ministere)}</b><br>DREN : ${esc(e.dren||"—")}<br>Tél : ${esc(telLine(e)||"—")}${e.code?"<br>Code : "+esc(e.code):""}</div>
+  <div class="lg">${e.logo?`<img src="${e.logo}" alt="Logo">`:""}</div>
+  <div class="r"><b>RÉPUBLIQUE DE CÔTE D'IVOIRE</b><br><i>Union – Discipline – Travail</i><br><b>${esc((e.nom||"").toUpperCase())}</b><br>Année scolaire : ${esc(e.annee)}${addrLine(e)?"<br>"+esc(addrLine(e)):""}${e.email?"<br>"+esc(e.email):""}</div></div>
+  <div class="fiche-title">${title}</div>${e.applic?`<div class="small muted" style="text-align:center">Applicable à partir du ${esc(e.applic)}</div>`:""}`}
+function signLine(){const e=S.etab;return `<div class="small" style="display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap"><i>${esc(e.devise||"")}</i><span style="text-align:right"><b style="text-decoration:underline">${esc(e.etudesTitre||"LE DIRECTEUR DES ÉTUDES")}</b>${e.etudesNom?"<br>"+esc(e.etudesNom):""}</span></div>`}
+function gridHTML(kind,id){
+  const N=nS();let h=`<div class="scroll"><table class="edt"><thead><tr><th class="h">Horaire</th>${JOURS.map(j=>`<th>${j.slice(0,3)}<span class="small" style="display:none">${j}</span></th>`).join("")}</tr></thead><tbody>`;
+  const pc=kind==="prof"?Object.fromEntries(profCells(id).map(x=>[x.k,x])):null;
+  for(let s=0;s<N;s++){const bl=breakLabel(s);if(bl) h+=`<tr><td></td><td class="brk" colspan="5">${bl}</td></tr>`;
+    const cr=S.creneaux[s];h+=`<tr><td class="h">${cr.debut}<br>${cr.fin}</td>`;
+    for(let d=0;d<5;d++){const k=d+"-"+s;
+      if(isOff(d,s)){h+=`<td class="c off" title="Pas de cours"></td>`;continue}
+      if(kind==="classe"){const v=(S.sched[id]||{})[k];
+        const sel=UI.sel&&UI.sel.k===k;const drop=UI.sel&&!sel;
+        if(v){const m=mat(v.m);const p=prof(v.p);h+=`<td class="c f ${sel?"sel":""} ${drop?"drop":""}" style="${hcode(m?.h||0)}" data-act="cell" data-k="${k}"><b>${esc(m?.code||"?")}</b><span>${esc(shortName(p?.nom))}</span></td>`}
+        else h+=`<td class="c ${drop?"drop":""}" data-act="cell" data-k="${k}" aria-label="Case libre"></td>`;
+      }else{const v=pc[k];
+        if(v){const m=mat(v.m),c=cls(v.c);h+=`<td class="c f" style="${hcode(m?.h||0)}" data-act="goClass" data-v="${v.c}"><b>${esc(c?.nom)}</b><span>${esc(m?.code)}</span></td>`}
+        else h+=`<td class="c" style="cursor:default"></td>`;}
+    }h+=`</tr>`}
+  return h+`</tbody></table></div>`;
+}
+function ficheClasse(c){
+  const pp=prof(c.pp);const need=needOf(c);
+  return `<section class="card fiche">${ficheHead("EMPLOI DU TEMPS CLASSE")}
+  <div class="kv"><div><span>Classe :</span> <b>${esc(c.nom)}</b></div><div><span>Effectif :</span> ${c.effectif||"—"}</div><div><span>Professeur principal :</span> ${esc(pp?.nom||"—")}</div><div><span>Volume :</span> ${classHours(c)} h/semaine</div>${c.salle?`<div><span>Salle :</span> ${esc(c.salle)}</div>`:""}</div>
+  <p class="small muted" style="margin:0">Touchez un cours, puis une autre case pour l'échanger ou le déplacer. Touchez une case vide pour ajouter un cours.</p>
+  ${gridHTML("classe",c.id)}
+  <div class="scroll"><table class="rec"><thead><tr><th>Discipline</th><th>Professeur</th><th>Prévu</th><th>Placé</th></tr></thead><tbody>
+  ${need.map(x=>{const m=mat(x.m);const p=prof((S.aff[c.id]||{})[x.m]);const pl=placedCount(c.id,x.m);return `<tr><td><span class="mat" style="${hcode(m.h)}">${esc(m.code)}</span> ${esc(m.nom)}</td><td>${esc(p?.nom||"—")}</td><td class="n">${x.h} h</td><td class="n">${pl===x.h?pl+" h":`<span class="chip ${pl<x.h?"warn":"bad"}">${pl} h</span>`}</td></tr>`}).join("")}
+  </tbody></table></div>
+  ${signLine()}</section>`;
+}
+function profRecap(p){
+  const cells=profCells(p.id);const g={};
+  for(const x of cells){const c=cls(x.c);const key=x.m+"|"+c.niveau;(g[key]=g[key]||{m:x.m,n:c.niveau,cl:{},h:0}).h++;g[key].cl[c.id]=c}
+  const rows=Object.values(g).sort((a,b)=>NIV.findIndex(n=>n.id===a.n)-NIV.findIndex(n=>n.id===b.n));
+  const total=cells.length;const sup=Math.max(0,total-(+p.du||0));
+  const ppOf=S.classes.filter(c=>c.pp===p.id).map(c=>c.nom).join(", ");
+  return {rows,total,sup,ppOf};
+}
+function ficheProf(p){
+  const {rows,total,sup,ppOf}=profRecap(p);
+  return `<section class="card fiche">${ficheHead("EMPLOI DU TEMPS PROFESSEUR")}
+  <div class="kv"><div><span>Nom et prénoms :</span> <b>${esc(p.nom)}</b></div><div><span>Sexe :</span> ${p.sexe}</div>
+  <div><span>Discipline :</span> ${p.mats.map(m=>mat(m)?.code).join(", ")}</div><div><span>Statut :</span> ${p.statut}</div>
+  <div><span>Diplôme :</span> ${esc(p.diplome||"—")}</div><div><span>Tél :</span> ${esc(p.tel||"—")}</div>
+  <div><span>Matricule / N° autorisation :</span> ${esc(p.matricule||"—")}</div>${p.origine?`<div><span>Établissement d'origine :</span> ${esc(p.origine)}</div>`:""}</div>
+  ${gridHTML("prof",p.id)}
+  <h3>Tableau récapitulatif</h3>
+  <div class="scroll"><table class="rec"><thead><tr><th>Classes</th><th>Effectifs</th><th>Discipline</th><th>Heures</th></tr></thead><tbody>
+  ${rows.map(r=>{const cl=Object.values(r.cl);return `<tr><td>${cl.map(c=>esc(c.nom)).join(" / ")}</td><td class="n">${cl.reduce((a,c)=>a+(+c.effectif||0),0)||"—"}</td><td>${esc(mat(r.m)?.code)}</td><td class="n">${r.h} h</td></tr>`}).join("")||`<tr><td colspan="4" class="muted">Aucun cours placé</td></tr>`}
+  <tr><td colspan="3"><b>Total</b></td><td class="n"><b>${total} h</b></td></tr>
+  <tr><td colspan="3">Heures supplémentaires (au-delà de ${p.du||0} h dues)</td><td class="n">${sup} h</td></tr>
+  <tr><td colspan="3">Professeur principal de la classe de</td><td>${esc(ppOf||"—")}</td></tr></tbody></table></div>
+  ${signLine()}</section>`;
+}
+function vActionBar(){const c=cls(UI.edtId);const v=(S.sched[UI.edtId]||{})[UI.sel.k];const m=v&&mat(v.m);
+  const [d,s]=UI.sel.k.split("-").map(Number);
+  return `<div class="actionbar"><div class="in-bar"><span class="grow"><b>${esc(m?.code||"")}</b> ${JOURS[d].toLowerCase()} ${S.creneaux[s].debut} · touchez une autre case</span>
+  <button class="btn" data-act="clearCell">Retirer</button><button class="btn" data-act="cancelSel">Annuler</button></div></div>`}
+
+/* ---------- Réglages ---------- */
+function vSet(){
+  const e=S.etab;const N=nS();
+  const fld=([k,l,ph,type])=>`<label class="f">${l}<input id="e-${k}" data-act="etab" data-k="${k}" value="${esc(e[k]||"")}" ${ph?`placeholder="${esc(ph)}"`:""} ${type?`type="${type}" inputmode="${type==="tel"?"tel":type==="email"?"email":"text"}"`:""}></label>`;
+  const sel=(k,l,opts)=>`<label class="f">${l}<select id="e-${k}" data-act="etab" data-k="${k}">${opts.map(o=>`<option ${e[k]===o?"selected":""}>${o}</option>`).join("")}</select></label>`;
+  return `<section class="card"><h3>Logo de l'établissement</h3>
+  <div class="logo-pick"><div class="prev">${e.logo?`<img src="${e.logo}" alt="Logo">`:"Aucun logo"}</div>
+  <div style="display:flex;flex-direction:column;gap:8px"><button class="btn" data-act="pickLogo">${e.logo?"Changer le logo":"Choisir une image"}</button>${e.logo?`<button class="btn ghost danger" data-act="delLogo">Retirer</button>`:""}
+  <span class="small muted">Il apparaît en haut de chaque emploi du temps et dans les PDF.</span></div></div></section>
+  <section class="card"><h3>Identité</h3><div class="grid2">
+  ${fld(["nom","Nom de l'établissement","ex : Lycée Moderne de Bouaké"])}${fld(["sigle","Sigle","ex : LMB"])}
+  ${sel("type","Type",["Collège","Lycée","Lycée moderne","Lycée technique","Groupe scolaire","Collège et lycée"])}
+  ${sel("statut","Statut",["Public","Privé laïc","Privé confessionnel catholique","Privé confessionnel protestant","Privé confessionnel islamique"])}
+  ${fld(["code","Code établissement"])}${fld(["dren","DREN","ex : Abidjan 1"])}${fld(["annee","Année scolaire","2026-2027"])}${fld(["applic","Applicable à partir du","ex : 05/10/2026"])}
+  </div><label class="f">Ministère (en-tête)<textarea id="e-ministere" data-act="etab" data-k="ministere" rows="2">${esc(e.ministere)}</textarea></label></section>
+  <section class="card"><h3>Coordonnées</h3><div class="grid2">
+  ${fld(["adresse","Adresse / quartier","ex : Cocody Angré, 8e tranche"])}${fld(["ville","Ville"])}${fld(["bp","Boîte postale","ex : BP 1234 Abidjan"])}
+  ${fld(["tel","Téléphone","","tel"])}${fld(["tel2","Autre téléphone","","tel"])}${fld(["email","E-mail","","email"])}${fld(["site","Site web / page Facebook"])}
+  </div></section>
+  <section class="card"><h3>Responsables et signature</h3><div class="grid2">
+  ${sel("chefTitre","Chef d'établissement",["Directeur","Proviseur","Principal","Fondateur","Directrice"])}${fld(["chefNom","Nom du chef d'établissement"])}
+  ${fld(["etudesTitre","Signataire des emplois du temps","LE DIRECTEUR DES ÉTUDES"])}${fld(["etudesNom","Nom du signataire"])}
+  </div>${fld(["devise","Devise de l'établissement"])}</section>
+  <section class="card"><div class="sec-title"><h3>Créneaux horaires</h3><button class="btn" data-act="addSlot">+ Créneau</button></div>
+  <p class="muted small" style="margin:0">Le numéro de groupe sépare les moments de la journée : un changement de groupe crée une récréation ou une pause. Une séance de 2 h ne traverse jamais une pause.</p>
+  <div class="list">${S.creneaux.map((c,i)=>`<div class="item" style="cursor:default;gap:8px"><input class="in" style="width:86px;font-family:var(--f-mono)" id="cd-${i}" data-act="slot" data-i="${i}" data-k="debut" value="${esc(c.debut)}"><span class="muted">→</span><input class="in" style="width:86px;font-family:var(--f-mono)" id="cf-${i}" data-act="slot" data-i="${i}" data-k="fin" value="${esc(c.fin)}">
+  <select class="in" style="width:auto" id="cg-${i}" data-act="slot" data-i="${i}" data-k="g">${[1,2,3,4].map(g=>`<option value="${g}" ${c.g==g?"selected":""}>Groupe ${g}</option>`).join("")}</select>
+  <button class="btn ghost" data-act="delSlot" data-i="${i}" aria-label="Supprimer">✕</button></div>`).join("")}</div></section>
+  <section class="card"><h3>Jours et heures sans cours</h3><p class="muted small" style="margin:0">Touchez une case pour la fermer à tout l'établissement (par défaut : mercredi après-midi).</p>
+  ${miniGrid("off",S.off)}</section>
+  <section class="card"><h3>Sauvegarde</h3><p class="muted small" style="margin:0">Vos données sont enregistrées automatiquement. Gardez aussi une copie de sécurité dans votre téléphone.</p>
+  <div class="row"><button class="btn" data-act="exportJson">Télécharger une sauvegarde</button><button class="btn" data-act="importJson">Restaurer une sauvegarde</button></div></section>
+  <section class="card"><h3>Installer ${APP} sur le téléphone</h3>
+  ${installEvt?`<button class="btn primary" data-act="install">Installer l'application</button>`:""}
+  <p class="small" style="margin:0">Sinon, dans le navigateur (Chrome), ouvrez le menu ⋮ puis <b>« Installer l'application »</b> ou <b>« Ajouter à l'écran d'accueil »</b>. Sur iPhone : bouton Partager, puis « Sur l'écran d'accueil ».</p></section>
+  <section class="card"><h3>Zone sensible</h3><div class="row"><button class="btn" data-act="loadSample">Recharger l'exemple</button><button class="btn danger" data-act="resetAll">Tout effacer</button></div></section>
+  <div class="brandline"><b>${APP}</b> · version 1.0 · emplois du temps scolaires</div>`;
+}
+function miniGrid(kind,map){const N=nS();let h=`<div class="mini"><div></div>${JOURS.map(j=>`<div>${j.slice(0,3)}</div>`).join("")}`;
+  for(let s=0;s<N;s++){h+=`<div class="hh">${S.creneaux[s].debut}</div>`;for(let d=0;d<5;d++){const k=d+"-"+s;
+    if(kind==="indispo"&&isOff(d,s)) h+=`<button class="x" disabled aria-label="Fermé"></button>`;
+    else h+=`<button type="button" class="${map[k]?"on":""}" data-act="mini" data-kind="${kind}" data-k="${k}">${map[k]?"✕":""}</button>`}}
+  return h+`</div>`}
+
+/* ===================== Feuilles (formulaires) ===================== */
+let sheetCtx=null;
+function openSheet(html){closeSheet();const d=document.createElement("div");d.className="scrim";d.id="scrim";
+  d.innerHTML=`<div class="sheet" role="dialog" aria-modal="true"><div class="grab"></div>${html}</div>`;
+  d.addEventListener("click",e=>{if(e.target===d)closeSheet()});document.body.appendChild(d);
+  setTimeout(()=>{const f=d.querySelector("input,select");if(f&&!("ontouchstart" in window))f.focus()},50)}
+function closeSheet(){document.getElementById("scrim")?.remove();sheetCtx=null}
+function toast(msg){document.querySelector(".toast")?.remove();const t=document.createElement("div");t.className="toast";t.textContent=msg;document.body.appendChild(t);setTimeout(()=>t.remove(),2600)}
+function confirmBox(msg,yesLabel,fn){openSheet(`<h3>${msg}</h3><div class="row"><button class="btn grow" data-act="close">Annuler</button><button class="btn danger grow" id="yesBtn">${yesLabel}</button></div>`);
+  document.getElementById("yesBtn").onclick=()=>{closeSheet();fn()}}
+
+function sheetClass(id){const c=id?cls(id):{id:null,nom:"",niveau:"6e",effectif:"",pp:""};
+  openSheet(`<h3>${id?"Modifier la classe":"Nouvelle classe"}</h3>
+  <div class="grid2"><label class="f">Nom<input id="fc-nom" value="${esc(c.nom)}" placeholder="ex : 6è1"></label>
+  <label class="f">Niveau<select id="fc-niv">${NIV.map(n=>`<option value="${n.id}" ${c.niveau===n.id?"selected":""}>${n.l}</option>`).join("")}</select></label>
+  <label class="f">Effectif<input id="fc-eff" type="number" inputmode="numeric" value="${esc(c.effectif)}"></label>
+  <label class="f">Salle<input id="fc-salle" value="${esc(c.salle||"")}" placeholder="ex : Salle 12, Bât. B"></label>
+  <label class="f">Professeur principal<select id="fc-pp"><option value="">—</option>${S.profs.map(p=>`<option value="${p.id}" ${c.pp===p.id?"selected":""}>${esc(p.nom)}</option>`).join("")}</select></label></div>
+  <div class="row">${id?`<button class="btn danger" data-act="delClass" data-v="${id}">Supprimer</button>`:""}<button class="btn grow" data-act="close">Annuler</button><button class="btn primary grow" data-act="saveClass" data-v="${id||""}">Enregistrer</button></div>`)}
+function sheetMany(){openSheet(`<h3>Ajouter plusieurs classes</h3>
+  <div class="grid2"><label class="f">Niveau<select id="fm-niv">${NIV.map(n=>`<option value="${n.id}">${n.l}</option>`).join("")}</select></label>
+  <label class="f">Nombre de classes<input id="fm-n" type="number" inputmode="numeric" value="2" min="1" max="20"></label>
+  <label class="f">Effectif moyen<input id="fm-eff" type="number" inputmode="numeric" value="50"></label></div>
+  <p class="muted small" id="fm-prev" style="margin:0"></p>
+  <div class="row"><button class="btn grow" data-act="close">Annuler</button><button class="btn primary grow" data-act="saveMany">Ajouter</button></div>`);
+  const upd=()=>{const n=+document.getElementById("fm-n").value||1;const p=classPrefix(document.getElementById("fm-niv").value);
+    const ex=S.classes.filter(c=>c.niveau===document.getElementById("fm-niv").value).length;
+    document.getElementById("fm-prev").textContent="Noms créés : "+Array.from({length:Math.min(n,20)},(_,i)=>p+(n>1||ex?(p.includes(" ")?" ":"")+(ex+i+1):"")).join(", ")};
+  ["fm-n","fm-niv"].forEach(i=>document.getElementById(i).addEventListener("input",upd));upd()}
+function sheetProf(id){const p=id?prof(id):{nom:"",sexe:"M",mats:[],statut:"PERMANENT",diplome:"Licence",tel:"",max:24,du:18,indispo:{}};
+  sheetCtx={indispo:{...p.indispo}};
+  openSheet(`<h3>${id?"Modifier le professeur":"Nouveau professeur"}</h3>
+  <label class="f">Nom et prénoms<input id="fp-nom" value="${esc(p.nom)}"></label>
+  <div class="grid2"><label class="f">Sexe<select id="fp-sexe"><option ${p.sexe==="M"?"selected":""}>M</option><option ${p.sexe==="F"?"selected":""}>F</option></select></label>
+  <label class="f">Statut<select id="fp-statut"><option ${p.statut==="PERMANENT"?"selected":""}>PERMANENT</option><option ${p.statut==="VACATAIRE"?"selected":""}>VACATAIRE</option></select></label>
+  <label class="f">Diplôme<select id="fp-dip">${["Master / DEA","Maîtrise","Licence","DEUG","CAP / CM","BTS","BAC"].map(x=>`<option ${p.diplome===x?"selected":""}>${x}</option>`).join("")}</select></label>
+  <label class="f">Téléphone<input id="fp-tel" inputmode="tel" value="${esc(p.tel)}"></label>
+  <label class="f">Matricule / N° autorisation<input id="fp-mle" value="${esc(p.matricule||"")}"></label>
+  <label class="f">Établissement d'origine<input id="fp-ori" value="${esc(p.origine||"")}" placeholder="pour les vacataires"></label>
+  <label class="f">Heures max / semaine<input id="fp-max" type="number" inputmode="numeric" value="${p.max}"></label>
+  <label class="f">Heures dues (au-delà = heures sup)<input id="fp-du" type="number" inputmode="numeric" value="${p.du}"></label></div>
+  <div class="f" style="display:flex;flex-direction:column;gap:6px;font-size:13px;font-weight:600;color:var(--muted)">Matières enseignées
+  <div class="row">${S.matieres.map(m=>`<label class="check" style="width:auto;align-items:center"><input type="checkbox" class="fp-mat" value="${m.id}" ${p.mats.includes(m.id)?"checked":""}><span class="mat" style="${hcode(m.h)}">${esc(m.code)}</span></label>`).join("")}</div></div>
+  <div style="display:flex;flex-direction:column;gap:6px"><b class="small">Indisponibilités</b><span class="small muted">Touchez les heures où ce professeur ne peut pas venir.</span><div id="fp-ind">${miniGrid("indispo",sheetCtx.indispo)}</div></div>
+  <div class="row">${id?`<button class="btn danger" data-act="delProf" data-v="${id}">Supprimer</button>`:""}<button class="btn grow" data-act="close">Annuler</button><button class="btn primary grow" data-act="saveProf" data-v="${id||""}">Enregistrer</button></div>`)}
+function sheetMat(id){const m=id?mat(id):{code:"",nom:"",h:HUES[S.matieres.length%HUES.length],bloc:false,matin:false};sheetCtx={h:m.h};
+  openSheet(`<h3>${id?"Modifier la matière":"Nouvelle matière"}</h3>
+  <div class="grid2"><label class="f">Code court<input id="fx-code" maxlength="6" value="${esc(m.code)}" placeholder="ex : INFO"></label><label class="f">Nom complet<input id="fx-nom" value="${esc(m.nom)}"></label></div>
+  <div class="sw" id="fx-sw">${HUES.map(h=>`<button type="button" style="--h:${h}" data-act="hue" data-v="${h}" aria-pressed="${m.h===h}" aria-label="Couleur"></button>`).join("")}</div>
+  <label class="check"><input type="checkbox" id="fx-bloc" ${m.bloc?"checked":""}><span>Séances de 2 heures d'affilée</span></label>
+  <label class="check"><input type="checkbox" id="fx-matin" ${m.matin?"checked":""}><span>Placer plutôt le matin</span></label>
+  <div class="row">${id?`<button class="btn danger" data-act="delMat" data-v="${id}">Supprimer</button>`:""}<button class="btn grow" data-act="close">Annuler</button><button class="btn primary grow" data-act="saveMat" data-v="${id||""}">Enregistrer</button></div>`)}
+function sheetAddLesson(k){const c=cls(UI.edtId);const [d,s]=k.split("-").map(Number);
+  const opts=needOf(c).map(x=>{const pl=placedCount(c.id,x.m);const pid=(S.aff[c.id]||{})[x.m];const ok=canPut(c.id,k,pid);return {...x,pl,pid,ok}});
+  openSheet(`<h3>Ajouter un cours · ${esc(c.nom)}</h3><p class="muted small" style="margin:0">${JOURS[d]} · ${S.creneaux[s].debut} – ${S.creneaux[s].fin}</p>
+  <div class="list">${opts.map(o=>{const m=mat(o.m);const p=prof(o.pid);return `<button class="item" data-act="addLesson" data-k="${k}" data-m="${o.m}" ${o.ok===true?"":"disabled style='opacity:.5;cursor:default'"}><span class="mat" style="${hcode(m.h)}">${esc(m.code)}</span><span class="grow"><b>${esc(m.nom)}</b><span>${esc(p?.nom||"Sans professeur")} ${o.ok!==true?"· "+o.ok:""}</span></span><span class="chip ${o.pl<o.h?"warn":"ok"}">${o.pl}/${o.h} h</span></button>`}).join("")}</div>
+  <button class="btn" data-act="close">Fermer</button>`)}
+
+/* ===================== Édition manuelle ===================== */
+function canPut(cid,k,pid,ignore){const [d,s]=k.split("-").map(Number);if(isOff(d,s))return "créneau fermé";if(!pid)return true;
+  const p=prof(pid);if(p?.indispo[k])return "professeur indisponible";
+  for(const c of S.classes){if(c.id===cid)continue;const v=(S.sched[c.id]||{})[k];if(v&&v.p===pid)return "déjà en "+c.nom}return true}
+function cellTap(k){const cid=UI.edtId;const sc=S.sched[cid]=S.sched[cid]||{};
+  if(!UI.sel){if(sc[k]){UI.sel={k};render()}else sheetAddLesson(k);return}
+  const a=UI.sel.k;if(a===k){UI.sel=null;render();return}
+  const A=sc[a],B=sc[k];
+  const r1=canPut(cid,k,A?.p);if(r1!==true){toast("Impossible : "+mat(A.m).code+" — "+r1);return}
+  if(B){const r2=canPut(cid,a,B.p);if(r2!==true){toast("Impossible : "+mat(B.m).code+" — "+r2);return}}
+  if(B){sc[a]=B}else delete sc[a];sc[k]=A;UI.sel=null;save();render();toast(B?"Cours échangés":"Cours déplacé")}
+
+/* ===================== PDF ===================== */
+function hslToRgb(h,s,l){s/=100;l/=100;const k=n=>(n+h/30)%12;const a=s*Math.min(l,1-l);const f=n=>l-a*Math.max(-1,Math.min(k(n)-3,Math.min(9-k(n),1)));return [255*f(0),255*f(8),255*f(4)].map(Math.round)}
+function pdfPage(doc,kind,id,first){
+  if(!first) doc.addPage();const e=S.etab;const W=doc.internal.pageSize.getWidth();
+  doc.setDrawColor(20);doc.setLineWidth(.4);doc.roundedRect(10,8,W-20,31,4,4);
+  doc.setFont("helvetica","bold");doc.setFontSize(7.5);
+  const min=doc.splitTextToSize(pdfTxt(e.ministere||""),72).slice(0,3);doc.text(min,14,13);
+  let ly=13+min.length*3.3+1;doc.setFont("helvetica","normal");
+  [["DREN : "+(e.dren||"-")],["Tel : "+(telLine(e)||"-")],e.code?["Code : "+e.code]:null].filter(Boolean).forEach(l=>{doc.text(pdfTxt(l[0]),14,ly);ly+=3.4});
+  if(e.logo){try{doc.addImage(e.logo,"PNG",W/2-11,10,22,22,undefined,"FAST")}catch(err){}}
+  doc.setFont("helvetica","bold");doc.text(pdfTxt("RÉPUBLIQUE DE CÔTE D'IVOIRE"),W-14,13,{align:"right"});
+  doc.setFont("helvetica","italic");doc.text("Union - Discipline - Travail",W-14,16.6,{align:"right"});
+  doc.setFont("helvetica","bold");doc.setFontSize(8.5);doc.text(pdfTxt((e.nom||"").toUpperCase()),W-14,21,{align:"right",maxWidth:78});
+  doc.setFontSize(7.5);doc.setFont("helvetica","italic");doc.text(pdfTxt("Année scolaire : "+(e.annee||"")),W-14,25,{align:"right"});
+  doc.setFont("helvetica","normal");let ry=28.6;[addrLine(e),e.email].filter(Boolean).forEach(l=>{doc.text(pdfTxt(l),W-14,ry,{align:"right",maxWidth:78});ry+=3.4});
+  doc.setFont("helvetica","bold");doc.setFontSize(13);const t=kind==="classe"?"EMPLOI DU TEMPS CLASSE":"EMPLOI DU TEMPS PROFESSEUR";
+  const tw=doc.getTextWidth(t)+10;doc.rect((W-tw)/2,42,tw,9);doc.text(t,W/2,48.5,{align:"center"});
+  doc.setFontSize(8);doc.setFont("helvetica","italic");if(e.applic) doc.text(pdfTxt("Applicable à partir du "+e.applic),W/2,54.5,{align:"center"});
+  doc.setFontSize(9.5);let y=60;
+  const N=nS();const body=[];const fills=[];
+  let lookup;
+  if(kind==="classe"){const c=cls(id);const pp=prof(c.pp);
+    doc.setFont("helvetica","bold");doc.text(pdfTxt("CLASSE : "+c.nom),14,y);doc.setFont("helvetica","normal");
+    doc.text(pdfTxt("Effectif : "+(c.effectif||"-")+"     Professeur principal : "+(pp?.nom||"-")+(c.salle?"     Salle : "+c.salle:"")),62,y);y+=4;
+    lookup=k=>{const v=(S.sched[id]||{})[k];if(!v)return null;const m=mat(v.m);return {t:(m?.code||"")+"\n"+shortName(prof(v.p)?.nom||""),h:m?.h}};
+  }else{const p=prof(id);
+    doc.setFont("helvetica","bold");doc.text(pdfTxt("NOM ET PRÉNOMS : "+p.nom),14,y);doc.setFont("helvetica","normal");
+    doc.text(pdfTxt("Sexe : "+p.sexe+"    Discipline : "+p.mats.map(m=>mat(m)?.code).join(", ")),W-14,y,{align:"right"});y+=5;
+    doc.text(pdfTxt("Statut : "+p.statut+"    Diplôme : "+(p.diplome||"-")+"    Tél : "+(p.tel||"-")),14,y);
+    doc.text(pdfTxt("Matricule : "+(p.matricule||"-")),W-14,y,{align:"right"});y+=4;
+    if(p.origine){y+=1;doc.text(pdfTxt("Établissement d'origine : "+p.origine),14,y);y+=4}
+    const pc=Object.fromEntries(profCells(id).map(x=>[x.k,x]));
+    lookup=k=>{const v=pc[k];if(!v)return null;const m=mat(v.m);return {t:(cls(v.c)?.nom||"")+"\n"+(m?.code||""),h:m?.h}};
+  }
+  for(let s=0;s<N;s++){const bl=breakLabel(s);if(bl){body.push([{content:bl.toUpperCase(),colSpan:6,styles:{halign:"center",fontSize:7,textColor:110,fillColor:[245,245,245],cellPadding:1}}])}
+    const cr=S.creneaux[s];const row=[cr.debut+"-"+cr.fin];
+    for(let d=0;d<5;d++){const k=d+"-"+s;if(isOff(d,s)){row.push({content:"",styles:{fillColor:[230,230,230]}});continue}
+      const v=lookup(k);row.push(v?{content:v.t,styles:{fillColor:hslToRgb(v.h||0,62,90),fontStyle:"bold"}}:"")}
+    body.push(row)}
+  doc.autoTable({startY:y+2,head:[["HORAIRE",...JOURS]],body,theme:"grid",margin:{left:10,right:10},
+    styles:{fontSize:8.5,halign:"center",valign:"middle",lineColor:60,lineWidth:.2,textColor:20,minCellHeight:11},
+    headStyles:{fillColor:[255,255,255],textColor:20,fontStyle:"bold",lineWidth:.3},
+    columnStyles:{0:{cellWidth:26,fontSize:7.5,fontStyle:"normal"}}});
+  y=doc.lastAutoTable.finalY+6;
+  if(kind==="prof"){const p=prof(id);const {rows,total,sup,ppOf}=profRecap(p);
+    doc.setFont("helvetica","bold");doc.setFontSize(10);doc.text("TABLEAU RECAPITULATIF",W/2,y,{align:"center"});
+    const rb=rows.map(r=>{const cl=Object.values(r.cl);return [cl.map(c=>c.nom).join(" / "),String(cl.reduce((a,c)=>a+(+c.effectif||0),0)||"-"),mat(r.m)?.code||"",r.h+"H"]});
+    rb.push([{content:"TOTAL",colSpan:3,styles:{fontStyle:"bold",halign:"right"}},{content:total+"H",styles:{fontStyle:"bold"}}]);
+    rb.push([{content:"Nombre d'heures supplementaires",colSpan:3,styles:{halign:"right"}},sup+"H"]);
+    rb.push([{content:"Professeur Principal de la classe de",colSpan:3,styles:{halign:"right"}},ppOf||"-"]);
+    doc.autoTable({startY:y+3,head:[["Classes","Effectifs","Discipline","Nombre d'heures"]],body:rb,theme:"grid",margin:{left:10,right:10},
+      styles:{fontSize:8.5,lineColor:60,lineWidth:.2,textColor:20},headStyles:{fillColor:[240,240,240],textColor:20}});
+    y=doc.lastAutoTable.finalY+8;}
+  else{const c=cls(id);const rb=needOf(c).map(x=>[mat(x.m)?.nom||x.m,prof((S.aff[c.id]||{})[x.m])?.nom||"-",x.h+"H"]);
+    doc.autoTable({startY:y,head:[["Discipline","Professeur","Volume"]],body:rb,theme:"grid",margin:{left:10,right:10},
+      styles:{fontSize:8,lineColor:60,lineWidth:.2,textColor:20,cellPadding:1.2},headStyles:{fillColor:[240,240,240],textColor:20}});
+    y=doc.lastAutoTable.finalY+8;}
+  doc.setFont("helvetica","bolditalic");doc.setFontSize(9);doc.text(pdfTxt(e.devise||""),14,y);
+  doc.setFont("helvetica","bold");doc.text(pdfTxt(e.etudesTitre||"LE DIRECTEUR DES ÉTUDES"),W-14,y,{align:"right"});
+  if(e.etudesNom){doc.setFont("helvetica","normal");doc.text(pdfTxt(e.etudesNom),W-14,y+18,{align:"right"})}
+  doc.setFont("helvetica","normal");doc.setFontSize(6.5);doc.setTextColor(150);doc.text("Généré avec "+APP,W/2,doc.internal.pageSize.getHeight()-6,{align:"center"});doc.setTextColor(20);
+}
+function pdfTxt(s){return String(s??"").replace(/[’‘]/g,"'").replace(/[–—]/g,"-").replace(/[“”«»]/g,'"').replace(/œ/g,"oe").replace(/Œ/g,"OE").replace(/[^\x20-\xFF\n]/g,"")}
+function strip(s){return String(s).normalize("NFD").replace(/[̀-ͯ]/g,"")}
+const STANDALONE=!!window.KALANSO_STANDALONE;let installEvt=null;
+async function saveFile(filename,data,mime){
+  filename=strip(filename).replace(/[^\w.-]+/g,"_");
+  if(downloads){try{await downloads.save({filename,data});toast("Fichier enregistré")}catch(e){if(e?.code!=="declined")toast("Le fichier n'a pas pu être enregistré.")}return}
+  if(STANDALONE){const blob=new Blob([data],{type:mime});const url=URL.createObjectURL(blob);const a=document.createElement("a");
+    a.href=url;a.download=filename;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),4000);toast("Fichier enregistré dans vos téléchargements");return}
+  toast("Le téléchargement n'est pas disponible dans cet affichage.");
+}
+async function makePDF(kind,ids,filename){
+  if(!window.jspdf){toast("Le module PDF n'a pas pu se charger. Vérifiez votre connexion.");return}
+  const doc=new window.jspdf.jsPDF({unit:"mm",format:"a4"});
+  ids.forEach((id,i)=>pdfPage(doc,kind,id,i===0));
+  await saveFile(filename,doc.output("arraybuffer"),"application/pdf");
+}
+function pickLogoFile(){const inp=document.createElement("input");inp.type="file";inp.accept="image/*";
+  inp.onchange=()=>{const f=inp.files[0];if(!f)return;const r=new FileReader();r.onload=()=>{const img=new Image();img.onload=()=>{
+    const M=220,k=Math.min(1,M/Math.max(img.width,img.height));const cv=document.createElement("canvas");cv.width=Math.round(img.width*k);cv.height=Math.round(img.height*k);
+    cv.getContext("2d").drawImage(img,0,0,cv.width,cv.height);S.etab.logo=cv.toDataURL("image/png");save();render();toast("Logo enregistré")};
+    img.onerror=()=>toast("Cette image n'a pas pu être lue.");img.src=r.result};r.readAsDataURL(f)};inp.click()}
+
+/* ===================== Événements ===================== */
+document.addEventListener("click",async e=>{
+  const t=e.target.closest("[data-act]");if(!t||t.disabled)return;const a=t.dataset.act,v=t.dataset.v;
+  if(["etab","slot","vol","setAff","edtPick","optBloc"].includes(a)) return;
+  switch(a){
+    case "tab": UI.tab=v;UI.sel=null;render();scrollTo(0,0);break;
+    case "sub": UI.sub=v;render();break;
+    case "goStep": if(v==="set"){UI.tab="set"} else if(v==="gen"){UI.tab="gen"} else {UI.tab="data";UI.sub=v} render();scrollTo(0,0);break;
+    case "close": closeSheet();break;
+    case "clearSample": confirmBox("Effacer les données d'exemple et partir d'un établissement vide ?","Effacer",()=>{const keep=S.etab;S=defaultState();S.etab={...S.etab,annee:keep.annee};save();render();toast("Prêt. Commencez par les réglages de l'établissement.")});break;
+    case "loadSample": confirmBox("Remplacer toutes vos données par l'exemple ?","Remplacer",()=>{S=sampleState();autoAssign();generate();render();toast("Exemple rechargé")});break;
+    case "resetAll": confirmBox("Tout effacer ? Classes, professeurs et emplois du temps seront supprimés.","Tout effacer",()=>{S=defaultState();save();render();toast("Données effacées")});break;
+    case "runGen": runGen();break;
+    case "autoAff":{const w=autoAssign(true);save();render();toast(w?w+" cours restent sans professeur adapté":"Affectations terminées");break}
+    case "editClass": sheetClass(v);break;
+    case "addMany": sheetMany();break;
+    case "saveClass":{const nom=document.getElementById("fc-nom").value.trim();if(!nom){toast("Donnez un nom à la classe");return}
+      const o={nom,niveau:document.getElementById("fc-niv").value,effectif:+document.getElementById("fc-eff").value||0,salle:document.getElementById("fc-salle").value.trim(),pp:document.getElementById("fc-pp").value||null};
+      if(v){Object.assign(cls(v),o)}else S.classes.push({id:uid(),...o});S.exemple=false;save();closeSheet();render();break}
+    case "saveMany":{const niv=document.getElementById("fm-niv").value,n=Math.min(20,+document.getElementById("fm-n").value||1),eff=+document.getElementById("fm-eff").value||0;
+      const p=classPrefix(niv);const ex=S.classes.filter(c=>c.niveau===niv).length;
+      for(let i=0;i<n;i++) S.classes.push({id:uid(),nom:p+(n>1||ex?(p.includes(" ")?" ":"")+(ex+i+1):""),niveau:niv,effectif:eff,pp:null});
+      save();closeSheet();render();toast(n+" classe(s) ajoutée(s)");break}
+    case "delClass": confirmBox("Supprimer cette classe et son emploi du temps ?","Supprimer",()=>{S.classes=S.classes.filter(c=>c.id!==v);delete S.aff[v];delete S.sched[v];save();render()});break;
+    case "editProf": sheetProf(v);break;
+    case "mini":{const kind=t.dataset.kind,k=t.dataset.k;const map=kind==="off"?S.off:sheetCtx.indispo;
+      if(map[k])delete map[k];else map[k]=true;
+      if(kind==="off"){save();render()}else document.getElementById("fp-ind").innerHTML=miniGrid("indispo",sheetCtx.indispo);break}
+    case "saveProf":{const nom=document.getElementById("fp-nom").value.trim();if(!nom){toast("Saisissez le nom du professeur");return}
+      const mats=[...document.querySelectorAll(".fp-mat:checked")].map(x=>x.value);if(!mats.length){toast("Cochez au moins une matière");return}
+      const o={nom,sexe:document.getElementById("fp-sexe").value,statut:document.getElementById("fp-statut").value,diplome:document.getElementById("fp-dip").value,
+        tel:document.getElementById("fp-tel").value,matricule:document.getElementById("fp-mle").value.trim(),origine:document.getElementById("fp-ori").value.trim(),max:+document.getElementById("fp-max").value||0,du:+document.getElementById("fp-du").value||0,mats,indispo:sheetCtx.indispo};
+      if(v)Object.assign(prof(v),o);else S.profs.push({id:uid(),...o});S.exemple=false;save();closeSheet();render();break}
+    case "delProf": confirmBox("Supprimer ce professeur ? Ses cours resteront placés sans professeur.","Supprimer",()=>{S.profs=S.profs.filter(p=>p.id!==v);
+      for(const c in S.aff)for(const m in S.aff[c]) if(S.aff[c][m]===v) delete S.aff[c][m];
+      for(const c in S.sched)for(const k in S.sched[c]) if(S.sched[c][k].p===v) S.sched[c][k].p=null;
+      S.classes.forEach(c=>{if(c.pp===v)c.pp=null});save();render()});break;
+    case "editMat": sheetMat(v);break;
+    case "hue": sheetCtx.h=+v;document.querySelectorAll("#fx-sw button").forEach(b=>b.setAttribute("aria-pressed",b.dataset.v===v));break;
+    case "saveMat":{const code=document.getElementById("fx-code").value.trim().toUpperCase();if(!code){toast("Saisissez un code court");return}
+      const o={code,nom:document.getElementById("fx-nom").value.trim()||code,h:sheetCtx.h,bloc:document.getElementById("fx-bloc").checked,matin:document.getElementById("fx-matin").checked};
+      if(v)Object.assign(mat(v),o);else{if(S.matieres.some(m=>m.id===code)){toast("Ce code existe déjà");return}S.matieres.push({id:code,...o})}save();closeSheet();render();break}
+    case "delMat": confirmBox("Supprimer cette matière de toutes les classes ?","Supprimer",()=>{S.matieres=S.matieres.filter(m=>m.id!==v);
+      for(const n in S.grille) delete S.grille[n][v];for(const c in S.sched)for(const k in S.sched[c]) if(S.sched[c][k].m===v) delete S.sched[c][k];
+      S.profs.forEach(p=>p.mats=p.mats.filter(m=>m!==v));save();render()});break;
+    case "edtMode": UI.edtMode=v;UI.edtId=null;UI.sel=null;render();break;
+    case "openEdt": UI.tab="edt";UI.edtMode="classe";UI.edtId=v;UI.sel=null;render();scrollTo(0,0);break;
+    case "goClass": UI.edtMode="classe";UI.edtId=v;UI.sel=null;render();break;
+    case "cell": cellTap(t.dataset.k);break;
+    case "cancelSel": UI.sel=null;render();break;
+    case "clearCell": delete (S.sched[UI.edtId]||{})[UI.sel.k];UI.sel=null;save();render();toast("Cours retiré");break;
+    case "addLesson":{const k=t.dataset.k,m=t.dataset.m;const pid=(S.aff[UI.edtId]||{})[m]||null;
+      (S.sched[UI.edtId]=S.sched[UI.edtId]||{})[k]={m,p:pid&&prof(pid)?pid:null};save();closeSheet();render();toast("Cours ajouté");break}
+    case "addSlot":{const l=S.creneaux[S.creneaux.length-1];S.creneaux.push({debut:l?l.fin:"07H00",fin:"",g:l?l.g:1});save();render();break}
+    case "delSlot":{const i=+t.dataset.i;confirmBox("Supprimer ce créneau ? Les cours placés à cette heure seront retirés.","Supprimer",()=>{
+      const shift=o=>{const n={};for(const k in o){const [d,s]=k.split("-").map(Number);if(s===i)continue;n[d+"-"+(s>i?s-1:s)]=o[k]}return n};
+      S.creneaux.splice(i,1);S.off=shift(S.off);for(const c in S.sched)S.sched[c]=shift(S.sched[c]);S.profs.forEach(p=>p.indispo=shift(p.indispo));save();render()});break}
+    case "pdfOne":{const arr=UI.edtMode==="classe"?cls(UI.edtId):prof(UI.edtId);makePDF(UI.edtMode,[UI.edtId],"EDT_"+arr.nom+".pdf");break}
+    case "pdfAll":{const ids=(UI.edtMode==="classe"?S.classes:S.profs).map(x=>x.id);makePDF(UI.edtMode,ids,"EDT_"+(UI.edtMode==="classe"?"toutes_les_classes":"tous_les_professeurs")+".pdf");break}
+    case "exportJson": saveFile("sauvegarde_"+APP+"_"+(S.etab.sigle||S.etab.nom||"etablissement")+".json",JSON.stringify(S),"application/json");break;
+    case "pickLogo": pickLogoFile();break;
+    case "install": if(installEvt){installEvt.prompt();installEvt.userChoice.finally(()=>{installEvt=null;render()})}break;
+    case "delLogo": S.etab.logo="";save();render();break;
+    case "wStart": UI.welcome=false;S=defaultState();save();UI.tab="set";render();toast("Renseignez d'abord votre établissement");break;
+    case "wSample": UI.welcome=false;S=sampleState();autoAssign();generate();render();break;
+    case "importJson": document.getElementById("fileIn").click();break;
+  }
+});
+document.addEventListener("change",e=>{const t=e.target;const a=t.dataset?.act;
+  if(a==="etab"){S.etab[t.dataset.k]=t.value.trim();save();if(["nom","annee","dren","sigle"].includes(t.dataset.k)){const y=scrollY;render();scrollTo(0,y)}}
+  else if(a==="slot"){const c=S.creneaux[+t.dataset.i];c[t.dataset.k]=t.dataset.k==="g"?+t.value:t.value.toUpperCase().replace(":","H");save()}
+  else if(a==="vol"){const g=S.grille[t.dataset.n]=S.grille[t.dataset.n]||{};const n=Math.max(0,+t.value||0);if(n)g[t.dataset.m]=n;else delete g[t.dataset.m];save();render()}
+  else if(a==="setAff"){(S.aff[t.dataset.c]=S.aff[t.dataset.c]||{})[t.dataset.m]=t.value||undefined;if(!t.value)delete S.aff[t.dataset.c][t.dataset.m];save();render()}
+  else if(a==="edtPick"){UI.edtId=t.value;UI.sel=null;render()}
+  else if(a==="optBloc"){S.gen.bloc2=t.checked;save()}
+});
+document.getElementById("fileIn").addEventListener("change",e=>{const f=e.target.files[0];if(!f)return;const r=new FileReader();
+  r.onload=()=>{try{const x=JSON.parse(r.result);if(!x.classes||!x.creneaux)throw 0;S=migrate(x);save();render();toast("Sauvegarde restaurée")}catch(err){toast("Ce fichier n'est pas une sauvegarde valide.")}};
+  r.readAsText(f);e.target.value=""});
+
+function runGen(){
+  if(!S.classes.length){toast("Ajoutez d'abord des classes");return}
+  openSheet(`<div class="spin"></div><h3 style="text-align:center">Génération en cours…</h3><p class="muted small" style="text-align:center;margin:0">L'appli essaie plusieurs combinaisons pour éviter tout conflit.</p>`);
+  setTimeout(()=>{if(unassignedCount()) autoAssign(true);const r=generate();closeSheet();UI.tab="gen";render();scrollTo(0,0);
+    toast(r.miss?r.miss+" h restent à placer à la main":"Emplois du temps générés, sans conflit")},60);
+}
+
+/* ===================== Démarrage ===================== */
+(function init(){
+  const loc=loadLocal();
+  if(loc){S=migrate(loc)}else{S=defaultState();UI.welcome=true}
+  render();
+  if(STANDALONE&&"serviceWorker" in navigator){navigator.serviceWorker.register("sw.js").catch(()=>{})}
+  addEventListener("beforeinstallprompt",ev=>{ev.preventDefault();installEvt=ev;if(UI.tab==="set")render()});
+  (async()=>{
+    try{downloads=await window.claude?.use?.("downloads")}catch(e){}
+    try{const db=await window.claude?.use?.("db");const user=await window.claude?.use?.("user");
+      const id=user?await user.id():null;
+      if(db&&id){dbDoc=db.doc("data/users/"+id+"/etab");const snap=await dbDoc.get();
+        if(snap.exists){const d=snap.data();if(d&&d.json&&(+d.at||0)>(S.at||0)){S=migrate(JSON.parse(d.json));UI.welcome=false;render()}}
+        else if(!UI.welcome) saveNow();}
+    }catch(e){}
+  })();
+})();
+</script>
+
+</body>
+</html>
