@@ -163,6 +163,22 @@ table.edt td.c .hl + .hl{margin-top:3px;padding-top:3px;border-top:1px dashed rg
 table.edt td.c .hl b{display:inline;font-size:11px}
 table.edt td.c .hl span{display:inline;font-size:9.5px;opacity:.8}
 table.edt td.c .wk{font-style:normal;font-size:8.5px;font-weight:800;background:var(--cell-ink);color:var(--surface);border-radius:4px;padding:0 4px;margin-left:3px;vertical-align:1px}
+.gauge{display:flex;flex-direction:column;gap:8px;background:var(--sunk);border-radius:16px;padding:12px}
+.gstats{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+.gstats span{display:block;font-size:11px;color:var(--muted);font-weight:600}
+.gstats b{display:block;font-size:16px;font-variant-numeric:tabular-nums}
+.gstats small{font-size:11px;color:var(--muted)}
+.gstats .is-sup b{color:var(--warm)}
+.gbar{position:relative;height:10px;border-radius:9px;background:var(--line);overflow:visible}
+.gbar i{position:absolute;top:0;bottom:0;border-radius:9px}
+.gbar .gn{left:0;background:var(--accent)}
+.gbar .gs{background:var(--warm)}
+.gbar em{position:absolute;top:-4px;bottom:-4px;width:2px;background:var(--ink);border-radius:2px}
+.gbar em.mx{background:var(--danger)}
+.lg{display:inline-block;width:10px;height:10px;border-radius:3px;margin-right:5px;vertical-align:-1px}
+.gmsg{font-size:12.5px;font-weight:600;color:var(--accent)}
+.gmsg.sup,.gmsg.full{color:var(--warm)}
+.gmsg.over{color:var(--danger)}
 .lvl{display:flex;flex-direction:column;gap:8px;padding-top:10px;border-top:1px solid var(--line)}
 .lvl-h{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
 .lvl-h .lnk{margin-left:auto;background:none;border:0;color:var(--accent);font-weight:700;font-size:12.5px;cursor:pointer;padding:4px}
@@ -508,7 +524,7 @@ function matNeed(mid){return S.classes.reduce((a,c)=>a+(+(S.grille[c.niveau]||{}
 function maxAutoInfo(p,mats){mats=mats||p.mats;let share=0;const parts=[];
   for(const mid of mats){const need=matNeed(mid);const others=S.profs.filter(q=>q.id!==p.id&&q.mats.includes(mid)).length;const n=others+1;
     share+=need/n;parts.push({mid,need,n})}
-  const val=share>0?Math.ceil(share)+1:(p.du||18);return {val,parts,share}}
+  const du=+p.du||0;const val=share>0?Math.max(Math.ceil(share)+1,du):(du||18);return {val,parts,share}}
 function profMax(p){return p.maxAuto?maxAutoInfo(p).val:(+p.max||0)}
 function matLevels(mid){return NIV.filter(n=>+(S.grille[n.id]||{})[mid]>0).map(n=>({l:n.l,h:+S.grille[n.id][mid]}))}
 function classHours(c){return needOf(c).reduce((a,x)=>a+x.h,0)}
@@ -794,6 +810,19 @@ function vAff(){
   ${mode==="prof"?vAffProf():vAffClasse()}`;
 }
 const NIV_ORDER=id=>NIV.findIndex(n=>n.id===id);
+// Jauge : heures normales (dues) en vert, heures supplémentaires en orange, maximum en rouge
+function hoursGauge(P,load,PM){const du=+P.du||0;const sup=Math.max(0,load-du);const manual=!P.maxAuto;const top=Math.max(manual?PM:0,load,du,1)*(manual?1:1.15);
+  const wN=Math.min(load,du)/top*100,wS=sup/top*100,mDu=du/top*100,mMax=PM/top*100;
+  const state=manual&&load>PM?"over":sup>0?"sup":load>=du&&du>0?"full":"ok";
+  const msg={ok:`Encore ${fmtH(du-load)} avant d'atteindre ses heures normales.`,full:`Heures normales atteintes. Les prochaines classes compteront en heures supplémentaires.`,
+    sup:`Heures normales atteintes. ${fmtH(sup)} d'heures supplémentaires.`,over:`Attention : ${fmtH(load)} dépasse son maximum de ${PM} h.`}[state];
+  return `<div class="gauge"><div class="gstats">
+    <div><span>Heures normales</span><b>${fmtH(Math.min(load,du))} / ${fmtH(du)}</b></div>
+    <div class="${sup?"is-sup":""}"><span>Heures sup.</span><b>${fmtH(sup)}</b></div>
+    <div><span>Total</span><b>${fmtH(load)}</b>${manual?`<small>max ${PM} h</small>`:""}</div></div>
+  <div class="gbar"><i class="gn" style="width:${wN}%"></i><i class="gs" style="left:${wN}%;width:${wS}%"></i><em style="left:${mDu}%" title="Heures dues"></em>${manual?`<em class="mx" style="left:${Math.min(mMax,100)}%" title="Maximum"></em>`:""}</div>
+  <div class="small muted" style="display:flex;gap:12px;flex-wrap:wrap"><span><i class="lg" style="background:var(--accent)"></i>Heures normales</span><span><i class="lg" style="background:var(--warm)"></i>Heures supplémentaires</span><span><i class="lg" style="background:var(--ink);width:3px"></i>Limite des heures dues</span></div>
+  <div class="gmsg ${state}">${msg}</div></div>`}
 function vAffProf(){
   if(!S.profs.find(p=>p.id===UI.affProf)) UI.affProf=S.profs[0].id;
   const P=prof(UI.affProf);const load=profLoadAff(P.id);const PM=profMax(P);const pct=Math.min(100,load/(PM||1)*100);
@@ -807,7 +836,8 @@ function vAffProf(){
         return `<button class="cchip ${mine?"on":""} ${other?"taken":""}" data-act="affToggle" data-c="${c.id}" data-m="${mid}" aria-pressed="${mine}">${mine?svg("check"):""}${esc(c.nom)}${other?`<small>${esc(shortName(other.nom))}</small>`:""}</button>`}).join("")}</div></div>`}).join("");
     return `<section class="card"><div class="row"><span class="mat" style="${hcode(m.h)}">${esc(m.code)}</span><h3 class="grow">${esc(m.nom)}</h3></div>${rows||`<span class="small muted">Aucune classe n'a de volume horaire pour cette matière.</span>`}</section>`};
   return `<section class="card"><label class="f">Professeur<select id="aff-prof" data-act="affProf">${[...S.profs].sort((a,b)=>(a.mats[0]||"").localeCompare(b.mats[0]||"")||a.nom.localeCompare(b.nom)).map(p=>`<option value="${p.id}" ${p.id===P.id?"selected":""}>${esc(p.nom)} · ${p.mats.map(x=>mat(x)?.code).join(", ")}</option>`).join("")}</select></label>
-  <div class="row"><span class="avatar tile ${tone(P.nom)}" style="border-radius:50%">${esc(initialsOf(P.nom))}</span><div class="grow"><b>${esc(P.nom)}</b><span class="small muted" style="display:block">${fmtH(load)} sur ${PM} h maximum${load>PM?" · dépassement":""}</span></div><span class="bar" style="width:110px"><i class="${load>PM?"over":""}" style="width:${pct}%"></i></span></div>
+  <div class="row"><span class="avatar tile ${tone(P.nom)}" style="border-radius:50%">${esc(initialsOf(P.nom))}</span><div class="grow"><b>${esc(P.nom)}</b><span class="small muted" style="display:block">${P.statut==="VACATAIRE"?"Vacataire":"Permanent"} · ${P.mats.map(x=>mat(x)?.code).join(", ")}</span></div></div>
+  ${hoursGauge(P,load,PM)}
   <span class="small muted">Touchez une classe pour la donner à ce professeur ou la lui retirer. Une classe grisée a déjà un autre professeur : la toucher la transfère.</span></section>
   <div class="cards">${P.mats.map(block).join("")}</div>`;
 }
@@ -1054,7 +1084,7 @@ function profSheetInfo(){const box=document.getElementById("fp-info");if(!box)re
   box.innerHTML=mats.length?`<div class="tip" style="flex-direction:column;gap:8px"><b style="margin:0">Horaires de la circulaire 0311</b>
     ${mats.map(mid=>{const m=mat(mid);const lv=matLevels(mid);const pt=inf.parts.find(x=>x.mid===mid);return `<div class="small"><span class="mat" style="${hcode(m.h)}">${esc(m.code)}</span> ${lv.map(x=>esc(x.l)+" "+fmtH(x.h)).join(" · ")||"aucun volume défini"}
       ${S.classes.length?`<br><span class="muted">Dans l'établissement : ${fmtH(pt.need)} de ${esc(m.code)} par semaine, à partager entre ${pt.n} professeur${pt.n>1?"s":""} → environ ${fmtH(Math.round(pt.need/pt.n*2)/2)} chacun.</span>`:""}</div>`}).join("")}
-    <div class="small">Heures max proposées : <strong style="color:var(--accent)">${inf.val} h</strong>${S.classes.length?" (sa part + 1 h de marge)":""}${cur?` · actuellement ${fmtH(cur)} avec ses classes`:""}. Au-delà de ${document.getElementById("fp-du").value||0} h dues, ce sont des heures supplémentaires.</div>
+    <div class="small">Heures max proposées : <strong style="color:var(--accent)">${inf.val} h</strong>${S.classes.length?" (sa part + 1 h de marge, jamais moins que ses heures dues)":""}${cur?` · actuellement ${fmtH(cur)} avec ses classes`:""}. Au-delà de ${document.getElementById("fp-du").value||0} h dues, ce sont des heures supplémentaires.</div>
     ${sheetCtx.auto?"":`<button class="btn" data-act="maxAuto" style="align-self:flex-start">Revenir au calcul automatique</button>`}</div>`:"";}
 function sheetMat(id){const m=id?mat(id):{code:"",nom:"",h:HUES[S.matieres.length%HUES.length],bloc:false,matin:false};sheetCtx={h:m.h};
   openSheet(`<h3>${id?"Modifier la matière":"Nouvelle matière"}</h3>
@@ -1280,9 +1310,9 @@ document.addEventListener("click",async e=>{
       S.classes.forEach(c=>{if(c.pp===v)c.pp=null});save();render()});break;
     case "editMat": sheetMat(v);break;
     case "affMode": UI.affMode=v;render();break;
-    case "affToggle":{const c=t.dataset.c,m=t.dataset.m;const a2=S.aff[c]=S.aff[c]||{};const was=a2[m];
-      if(was===UI.affProf){delete a2[m]}else{a2[m]=UI.affProf;if(was&&prof(was))toast(cls(c).nom+" transférée de "+shortName(prof(was).nom))}afterAff();break}
-    case "affLevel":{const n=t.dataset.n,m=t.dataset.m,on=t.dataset.on==="1";S.classes.filter(c=>c.niveau===n).forEach(c=>{const a2=S.aff[c.id]=S.aff[c.id]||{};if(on)a2[m]=UI.affProf;else if(a2[m]===UI.affProf)delete a2[m]});afterAff();break}
+    case "affToggle":{const c=t.dataset.c,m=t.dataset.m;const a2=S.aff[c]=S.aff[c]||{};const was=a2[m];const P0=prof(UI.affProf);const before=profLoadAff(P0.id);
+      if(was===UI.affProf){delete a2[m]}else{a2[m]=UI.affProf;if(was&&prof(was))toast(cls(c).nom+" transférée de "+shortName(prof(was).nom))}afterAff();supToast(P0,before);break}
+    case "affLevel":{const n=t.dataset.n,m=t.dataset.m,on=t.dataset.on==="1";const P0=prof(UI.affProf);const before=profLoadAff(P0.id);S.classes.filter(c=>c.niveau===n).forEach(c=>{const a2=S.aff[c.id]=S.aff[c.id]||{};if(on)a2[m]=UI.affProf;else if(a2[m]===UI.affProf)delete a2[m]});afterAff();supToast(P0,before);break}
     case "editSalle": sheetSalle(v);break;
     case "saveSalle":{const nom=document.getElementById("fs-nom").value.trim();if(!nom){toast("Donnez un nom à la salle");return}
       const o={nom,type:document.getElementById("fs-type").value,multi:document.getElementById("fs-multi").checked};let rid=v;
@@ -1356,6 +1386,10 @@ document.getElementById("fileIn").addEventListener("change",e=>{const f=e.target
   r.onload=()=>{try{const x=JSON.parse(r.result);if(!x.classes||!x.creneaux)throw 0;x.licence=S.licence;x.install=S.install;S=migrate(x);save();render();loadLicence();toast("Sauvegarde restaurée")}catch(err){toast("Ce fichier n'est pas une sauvegarde valide.")}};
   r.readAsText(f);e.target.value=""});
 
+function supToast(P,before){const now=profLoadAff(P.id),du=+P.du||0,PM=profMax(P);
+  if(!P.maxAuto&&now>PM&&before<=PM) toast(shortName(P.nom)+" dépasse son maximum ("+PM+" h).");
+  else if(du&&now>du&&before<=du) toast("Heures normales de "+shortName(P.nom)+" atteintes ("+fmtH(du)+"). "+fmtH(now-du)+" en heures supplémentaires.");
+  else if(du&&now===du&&before<du) toast("Heures normales de "+shortName(P.nom)+" atteintes ("+fmtH(du)+"). La suite comptera en heures supplémentaires.")}
 function afterAff(){const n=syncAff();save();const y=scrollY;render();scrollTo(0,y);
   if(n){const cf=findConflicts().filter(x=>x.type==="prof").length;if(cf)toast("Emplois du temps mis à jour. "+cf+" conflit(s) : touchez « Réparer » dans Emplois.");}}
 function runGen(){
