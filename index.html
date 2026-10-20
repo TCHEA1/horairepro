@@ -636,7 +636,8 @@ function splitOptions(h){const out=[];const half=Math.abs(h%1-0.5)<1e-9;
   const rec=(left,max,acc,used15)=>{if(out.length>12)return;if(Math.abs(left)<1e-9){if(!half||used15)out.push(acc.join("+"));return}
     for(const p of [3,2,1.5,1]){if(p>max+1e-9||p>left+1e-9)continue;if(p===1.5&&(used15||!half))continue;rec(left-p,p,[...acc,p],used15||p===1.5)}};
   if(h<1)return [String(h)];rec(h,3,[],false);return out}
-const splitLbl=str=>String(str).split("+").map(x=>fmtH(+x)).join(" + ");
+const splitLbl=str=>{const p=String(str).split("+").map(Number);if(p.length>1&&p.every(x=>x===1))return p.map(()=>"1 h").join(" + ")+" (séparées)";
+  return p.map(x=>x>=2?fmtH(x)+" collées":x===1.5?"1h30":fmtH(x)).join(" + ")};
 function splitFor(c,m,h){const want=(S.decoup||{})[c.niveau]?.[m.id];if(want){const parts=want.split("+").map(Number);if(Math.abs(parts.reduce((a,b)=>a+b,0)-h)<1e-9)return parts}return autoSplit(m,h)}
 function buildLessons(){
   const L=[];
@@ -876,13 +877,13 @@ function salleSelect(idName,cur,empty){return `<select id="${idName}"><option va
 function vDecoup(levels){if(!levels.length)return "";if(!levels.find(n=>n.id===UI.decNiv))UI.decNiv=(levels.find(n=>S.classes.some(c=>c.niveau===n.id))||levels[0]).id;
   const n=NIV.find(x=>x.id===UI.decNiv);const g=S.grille[n.id]||{};const rows=S.matieres.filter(m=>+g[m.id]>0);
   return `<section class="card"><h3>Séances : heures collées</h3>
-  <p class="muted small" style="margin:0">Choisissez comment chaque matière est découpée dans la semaine. Ex : PC 5 h en Tle D → <b>2 h + 2 h + 1 h</b> (deux fois deux heures collées, comme 7H15–9H05, et une heure ailleurs). « Automatique » suit le réglage des séances de 2 h.</p>
+  <p class="muted small" style="margin:0">Choisissez comment chaque matière est découpée dans la semaine. Ex : PC 2 h en 3ème → <b>2 h collées</b> (un seul bloc, comme 7H15–9H05) ou <b>1 h + 1 h</b> (deux jours différents) ; PC 5 h en Tle D → <b>2 h collées + 2 h collées + 1 h</b>. « Automatique » suit le réglage des séances de 2 h.</p>
   <div class="chips">${levels.map(x=>{const has=S.classes.some(c=>c.niveau===x.id);const set=Object.keys(S.decoup[x.id]||{}).length;return `<button class="cchip ${x.id===n.id?"on":""} ${has?"":"taken"}" data-act="decNiv" data-v="${x.id}">${esc(x.l)}${set?" ✓":""}</button>`}).join("")}</div>
   <span class="small muted">Tous les niveaux de la 6ème à la Terminale A, C, D. Les niveaux en pointillé n'ont pas encore de classe dans l'établissement. ✓ = découpage choisi.</span>
   <div class="list">${rows.map(m=>{const h=+g[m.id];const cur=(S.decoup[n.id]||{})[m.id]||"";const auto=autoSplit(m,h).join("+");const opts=splitOptions(h);
     return `<div class="item" style="cursor:default"><span class="mat" style="${hcode(m.h)}">${esc(m.code)}</span><span class="small muted" style="width:44px">${fmtH(h)}</span>
     <select class="in" style="flex:1;min-width:0" id="dc-${n.id}-${m.id}" data-act="decoup" data-n="${n.id}" data-m="${m.id}">
-      <option value="">Auto (${auto.split("+").map(x=>+x===1.5?"1h30":x).join("+")})</option>${opts.map(o=>`<option value="${o}" ${cur===o?"selected":""}>${splitLbl(o)}</option>`).join("")}</select></div>`}).join("")}</div>
+      <option value="">Auto : ${splitLbl(auto)}</option>${opts.map(o=>`<option value="${o}" ${cur===o?"selected":""}>${splitLbl(o)}</option>`).join("")}</select></div>`}).join("")}</div>
   <span class="small muted">Après un changement, relancez la génération.</span></section>`}
 function vMats(){
   const nivs=NIV.filter(n=>S.classes.some(c=>c.niveau===n.id));
