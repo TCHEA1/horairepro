@@ -188,6 +188,9 @@ table.edt td.c .wk{font-style:normal;font-size:8.5px;font-weight:800;background:
 .cchip.on{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
 .cchip.taken{background:var(--sunk);color:var(--muted);border-style:dashed}
 .cchip small{font-size:10.5px;font-weight:600;opacity:.85}
+table.edt td.c span.b15{display:block;white-space:normal;overflow:visible;line-height:1.15;font-size:9.5px;font-weight:800;color:var(--cell-ink);opacity:.75;margin-top:1px}
+table.edt td.c.blk1{border-bottom-left-radius:3px;border-bottom-right-radius:3px}
+table.edt td.c.blk2{border-top-left-radius:3px;border-top-right-radius:3px}
 .topo{color:var(--danger);font-weight:700;font-style:italic}
 .ppband{display:flex;align-items:center;gap:12px;background:var(--accent-soft);border-radius:16px;padding:10px 12px}
 .ppband .grow span{display:block;font-size:11.5px;color:var(--accent);font-weight:700;text-transform:uppercase;letter-spacing:.05em}
@@ -426,7 +429,8 @@ function migrate(x){const d=defaultState();for(const k in d) if(x[k]===undefined
   if(x.etab.directeur&&!x.etab.etudesTitre) x.etab.etudesTitre=x.etab.directeur;delete x.etab.directeur;
   x.etab={...defaultEtab(),...x.etab};
   x.profs.forEach(p=>{p.matricule=p.matricule||"";p.origine=p.origine||"";p.indispo=p.indispo||{};if(p.maxAuto===undefined)p.maxAuto=(+p.max===24)});
-  x.salles=x.salles||[];x.history=x.history||[];setTimeout(()=>{if(S===x&&syncAff())save()},0);
+  x.salles=x.salles||[];x.history=x.history||[];
+  {let dropped=0;for(const cid in x.sched||{})for(const k of Object.keys(x.sched[cid])){if(x.sched[cid][k].w){delete x.sched[cid][k];dropped++}}if(dropped)x.gen.needRegen=true}setTimeout(()=>{if(S===x&&syncAff())save()},0);
   if(!x.gridV||x.gridV<3){x.grille=JSON.parse(JSON.stringify(GRILLE_OFFICIELLE));
     if(!x.matieres.find(m=>m.id==="TICE"))x.matieres.push({id:"TICE",code:"TICE",nom:"TICE (informatique)",h:235,bloc:false,matin:false,salle:""});
     const ap=x.matieres.find(m=>m.id==="AP");if(ap&&/Arts plastiques/.test(ap.nom))ap.nom="Dessin / Éducation musicale";x.gridV=3}
@@ -512,7 +516,11 @@ function roomChoices(cid,mid){const m=mid==="__none"?null:mat(mid),c=cls(cid);co
 function roomFor(cid,mid){const m=mat(mid),c=cls(cid);return (m&&m.salle&&salle(m.salle)?m.salle:"")||(c&&c.salle&&salle(c.salle)?c.salle:"")||""}
 // Semaine A / B : une heure partagée entre deux cours qui alternent d'une semaine sur l'autre
 const BKEY=k=>k.split("/")[0];
-const W=v=>v&&v.w?0.5:1;
+const W=v=>v&&v.w?0.5:(v&&v.q||1);
+// Séance de 1h30 : deux créneaux consécutifs (part 1 et 2) pour une seule classe et un seul professeur
+function blockKeys(cid,k){const v=(S.sched[cid]||{})[k];if(!v||!v.blk)return null;const [d,s]=k.split("-").map(Number);return v.part===1?[k,d+"-"+(s+1)]:[d+"-"+(s-1),k]}
+const addMin=(hhmm,min)=>{const m=String(hhmm).match(/(\d+)\D*(\d*)/);if(!m)return "";let t=(+m[1])*60+(+m[2]||0)+min;return String(Math.floor(t/60)).padStart(2,"0")+"H"+String(t%60).padStart(2,"0")};
+function blkSpan(k,v){const [d,s]=k.split("-").map(Number);const s1=v.part===1?s:s-1;const deb=S.creneaux[s1]?.debut||"";return {deb,fin:addMin(deb,90)}}
 const MASK=v=>v.w==="A"?1:v.w==="B"?2:3;
 function itemsAt(cid,k){const sc=S.sched[cid]||{};return [sc[k],sc[k+"/B"]].filter(Boolean)}
 function profMask(pid,k,except){let m=0;for(const c of S.classes){if(c.id===except)continue;for(const v of itemsAt(c.id,k)) if(v.p===pid) m|=MASK(v)}return m}
@@ -532,7 +540,8 @@ function profMax(p){return p.maxAuto?maxAutoInfo(p).val:(+p.max||0)}
 function matLevels(mid){return NIV.filter(n=>+(S.grille[n.id]||{})[mid]>0).map(n=>({l:n.l,h:+S.grille[n.id][mid]}))}
 function classHours(c){return needOf(c).reduce((a,x)=>a+x.h,0)}
 function profLoadAff(pid){let t=0;for(const c of S.classes){const a=S.aff[c.id]||{};for(const x of needOf(c)) if(a[x.m]===pid) t+=x.h}return t}
-function profCells(pid){const out=[];for(const c of S.classes){const sc=S.sched[c.id]||{};for(const k in sc) if(sc[k].p===pid) out.push({k:BKEY(k),c:c.id,m:sc[k].m,r:sc[k].r||"",w:sc[k].w||""})}return out}
+function profCells(pid){const out=[];for(const c of S.classes){const sc=S.sched[c.id]||{};for(const k in sc) if(sc[k].p===pid) out.push({k:BKEY(k),c:c.id,m:sc[k].m,r:sc[k].r||"",w:sc[k].w||"",q:sc[k].q||0,blk:sc[k].blk||"",part:sc[k].part||0})}return out}
+const wOf=x=>x.w?0.5:(x.q||1);
 function groupCells(list){const g={};list.forEach(x=>(g[x.k]=g[x.k]||[]).push(x));return g}
 function placedCount(cid,mid){const sc=S.sched[cid]||{};let n=0;for(const k in sc) if(sc[k].m===mid) n+=W(sc[k]);return n}
 function totalNeeded(){return S.classes.reduce((a,c)=>a+classHours(c),0)}
@@ -577,8 +586,10 @@ function buildLessons(){
       // Salle spéciale (labo…) seulement pour « labH » heures par semaine ; les autres heures dans la salle de la classe
       const special=m.salle&&salle(m.salle);let labLeft=special?(m.labH===""||m.labH==null?Infinity:+m.labH):0;
       const pick=dur=>{if(labLeft>1e-9){labLeft-=dur;return rooms}return home};
+      if(half&&whole>=1){let i=ch.indexOf(1);if(i<0){const j=ch.indexOf(2);ch.splice(j,1,1,1);i=ch.indexOf(1)}ch.splice(i,1)}
+      if(half&&whole>=1){const rs=pick(1.5);L.push({c:c.id,m:x.m,p,d:2,n,r:rs[0]||"",rooms:rs,q15:true})}
       ch.forEach(d=>{const rs=pick(d);L.push({c:c.id,m:x.m,p,d,n,r:rs[0]||"",rooms:rs})});
-      if(half){const rs=pick(0.5);L.push({c:c.id,m:x.m,p,d:1,n,r:rs[0]||"",rooms:rs,half:true})}}}
+      if(half&&whole<1){const rs=pick(0.5);L.push({c:c.id,m:x.m,p,d:1,n,r:rs[0]||"",rooms:rs,q:0.5})}}}
   return L;
 }
 function generate(){
@@ -591,7 +602,8 @@ function generate(){
   while(att<400){att++;
     const C={},P={},RM={},CD={},MD={},PD={};const res={};const un=[];let score=0;
     const tight=l=>l.p?pHours[l.p]/pAvail[l.p]:0;
-    const ord=L.map(l=>({l,k:(l.half?40:0)+(l.d===2?-50:0)-tight(l)*20-(l.n>=4?5:0)+Math.random()*6})).sort((a,b)=>a.k-b.k).map(o=>o.l);
+    const lw=l=>l.q15?1.5:(l.q||l.d);
+    const ord=L.map(l=>({l,k:(l.d===2?-50:0)-tight(l)*20-(l.n>=4?5:0)+Math.random()*6})).sort((a,b)=>a.k-b.k).map(o=>o.l);
     const tryPlace=(l,dur,forbidDay)=>{
       let bestPos=null,bs=1e9;const m=mat(l.m);
       for(let d=0;d<5;d++){ if(d===forbidDay) continue;
@@ -604,12 +616,12 @@ function generate(){
           if(!ok) continue;
           // semaine(s) : un cours entier prend les deux semaines ; une demi-heure (1h30) prend la semaine A ou B
           let wk=0,room=null,pair=false;
-          for(const bit of (l.half?[1,2]:[3])){
+          for(const bit of [3]){
             let pOK=true;for(let k=0;k<dur;k++){if(l.p&&((P[l.p+"@"+d+"-"+(s+k)]||0)&bit)){pOK=false;break}}
             if(!pOK) continue;
             const rm=l.rooms.find(rid=>{if(!rid||salle(rid)?.multi)return true;for(let k=0;k<dur;k++){if((RM[rid+"@"+d+"-"+(s+k)]||0)&bit)return false}return true});
             if(rm===undefined) continue;
-            wk=bit;room=rm;pair=l.half&&l.p&&((P[l.p+"@"+d+"-"+s]||0)&(3&~bit));break}
+            wk=bit;room=rm;break}
           if(!wk){continue}
           let sc=Math.random()*2;if(pair) sc-=4;if(room!==l.rooms[0]) sc+=1.5;
           sc+=(CD[l.c+"|"+d]||0)*1.4;
@@ -622,27 +634,27 @@ function generate(){
           if(sc<bs){bs=sc;bestPos={d,s,wk,room}}
         }}
       if(!bestPos) return null;
-      const {d,s,wk,room}=bestPos;const bit=wk;
+      const {d,s,wk,room}=bestPos;const bit=wk;const blkId=l.q15?uid():"";
       for(let k=0;k<dur;k++){const key=d+"-"+(s+k);C[l.c+"@"+key]=3;if(l.p)P[l.p+"@"+key]=(P[l.p+"@"+key]||0)|bit;if(room)RM[room+"@"+key]=(RM[room+"@"+key]||0)|bit;
-        const cell={m:l.m,p:l.p,r:room||""};if(l.half)cell.w=bit===1?"A":"B";(res[l.c]=res[l.c]||{})[key]=cell}
-      const wt=l.half?0.5:dur;CD[l.c+"|"+d]=(CD[l.c+"|"+d]||0)+wt;if(l.p)PD[l.p+"|"+d]=(PD[l.p+"|"+d]||0)+wt;
+        const cell={m:l.m,p:l.p,r:room||""};if(l.q15){cell.q=0.75;cell.blk=blkId;cell.part=k+1}else if(l.q)cell.q=l.q;(res[l.c]=res[l.c]||{})[key]=cell}
+      const wt=l.q15?1.5:(l.q||dur);CD[l.c+"|"+d]=(CD[l.c+"|"+d]||0)+wt;if(l.p)PD[l.p+"|"+d]=(PD[l.p+"|"+d]||0)+wt;
       MD[l.c+"|"+l.m+"|"+d]=(MD[l.c+"|"+l.m+"|"+d]||0)+1;score+=bs;return d;
     };
     for(const l of ord){
       const d=tryPlace(l,l.d);
       if(d===null){
-        if(l.d===2){const l1={...l,n:l.n+1};const d1=tryPlace(l1,1);
+        if(l.d===2&&!l.q15){const l1={...l,n:l.n+1};const d1=tryPlace(l1,1);
           if(d1===null) un.push(l); else if(tryPlace(l1,1,d1)===null) un.push({...l,d:1});}
         else un.push(l);
       }}
-    const miss=un.reduce((a,l)=>a+(l.half?0.5:l.d),0);
+    const miss=un.reduce((a,l)=>a+lw(l),0);
     if(!best||miss<best.miss||(miss===best.miss&&score<best.score)) best={res,un,miss,score};
     const el=performance.now()-t0;
     if((best.miss===0&&att>=6)||el>2600) break;
   }
   snapshot("Nouvelle génération complète");
-  S.sched=best.res;
-  S.gen.report={at:Date.now(),miss:best.miss,un:best.un.map(l=>({c:l.c,m:l.m,p:l.p,d:l.half?0.5:l.d})),att,total:L.reduce((a,l)=>a+(l.half?0.5:l.d),0)};
+  S.sched=best.res;S.gen.needRegen=false;
+  S.gen.report={at:Date.now(),miss:best.miss,un:best.un.map(l=>({c:l.c,m:l.m,p:l.p,d:l.q15?1.5:(l.q||l.d)})),att,total:L.reduce((a,l)=>a+(l.q15?1.5:(l.q||l.d)),0)};
   save();return S.gen.report;
 }
 
@@ -665,13 +677,15 @@ function repairConflicts(){let fixed=0,guard=0;
     for(const x of cf){for(const cid of [x.b,x.a]){const N=nS();let best=null;
       for(let d=0;d<5&&!best;d++)for(let s=0;s<N;s++){const t=d+"-"+s;if(t===x.k)continue;
         if(moveCheck(cid,x.k,t)!==true)continue;const sc=S.sched[cid];const keep=JSON.stringify(sc);
-        swapBundles(sc,x.k,t);for(const key of [x.k,t])for(const v of itemsAt(cid,key)){if(v.r&&canPut(cid,key,null,v.r,v.w)!==true){const r2=freeRoom(cid,key,v);if(r2)v.r=r2}}
+        const keys=applyMove(cid,x.k,t);for(const key of keys)for(const v of itemsAt(cid,key)){if(v.r&&canPut(cid,key,null,v.r,v.w)!==true){const r2=freeRoom(cid,key,v);if(r2)v.r=r2}}
         if(findConflicts().length<cf.length){best=t;break}S.sched[cid]=JSON.parse(keep)}
       if(best){fixed++;done=true;break}}if(done)break}
     if(!done)break}
   return {fixed,left:findConflicts().length}}
 function clashKeys(kind,id){const set=new Set();for(const x of findConflicts()){
   if(kind==="classe"&&(x.a===id||x.b===id))set.add(x.k);if(kind==="prof"&&x.type==="prof"&&x.id===id)set.add(x.k);if(kind==="salle"&&x.type==="salle"&&x.id===id)set.add(x.k)}return set}
+function placeBanner(){const need=totalNeeded(),pl=totalPlaced();if(!S.gen.report||need-pl<0.25)return "";
+  return `<div class="banner"><span style="flex:1;min-width:200px"><b>${fmtH(need-pl)} de cours ne sont pas placées.</b> ${S.gen.needRegen?"Les séances de 1h30 sont maintenant des séances continues : ":""}Relancez la génération pour tout placer.</span><button class="btn primary" data-act="runGen">Générer</button></div>`}
 function conflictBanner(){const cf=findConflicts();if(!cf.length)return "";const x=cf[0];
   const who=x.type==="prof"?shortName(prof(x.id)?.nom):salleNom(x.id);
   return `<div class="banner" style="background:var(--danger-soft)"><span style="flex:1;min-width:200px"><b style="color:var(--danger)">${cf.length} conflit${cf.length>1?"s":""} d'horaire.</b> Exemple : ${esc(who)} est en ${esc(cls(x.a)?.nom)} et en ${esc(cls(x.b)?.nom)} le ${keyLbl(x.k)}. Les cases concernées sont en rouge.</span><div class="row"><button class="btn primary" data-act="repair">Réparer</button><button class="btn danger" data-act="runGen">Tout régénérer</button></div></div>`}
@@ -885,7 +899,7 @@ function vEdt(){
   if(!arr.length) return `${segs}<section class="card"><div class="empty">Rien à afficher. Ajoutez des ${mode==="classe"?"classes":mode==="prof"?"professeurs":"salles (Saisie → Salles)"} puis lancez la génération.</div></section>`;
   if(!arr.find(x=>x.id===UI.edtId)) UI.edtId=arr[0].id;
   const id=UI.edtId;
-  return `${conflictBanner()}${segs}
+  return `${conflictBanner()}${placeBanner()}${segs}
   <div class="pick-chips">${arr.map(x=>`<button data-act="goPick" data-v="${x.id}" aria-pressed="${x.id===id}">${esc(x.nom)}</button>`).join("")}</div>
   <div class="row"><select class="in grow edt-pick" style="flex:1" id="edt-pick" data-act="edtPick">${arr.map(x=>`<option value="${x.id}" ${x.id===id?"selected":""}>${esc(x.nom)}</option>`).join("")}</select>
   <button class="btn" data-act="pdfOne">PDF</button><button class="btn primary" data-act="pdfAll">Tout en PDF</button></div>
@@ -913,7 +927,9 @@ function cellBody(items,kind,home){ // contenu d'une case : un cours, ou deux co
     if(kind==="salle") return small?`<span class="hl"><b>${esc(c?.nom)}</b>${wk} ${esc(m?.code)}</span>`:`<b>${esc(c?.nom)}</b><span>${esc(m?.code)} · ${esc(shortName(p?.nom))}</span>`;
     const pn=p?esc(shortName(p.nom)):`<span class="topo">à pourvoir</span>`;
     return small?`<span class="hl"><b>${esc(m?.code)}</b>${wk}${rm}<br><span>${pn}</span></span>`:`<b>${esc(m?.code||"?")}${rm}</b><span>${pn}</span>`};
-  if(items.length===1&&!items[0].w) return one(items[0],false);
+  if(items.length===1&&!items[0].w){const v=items[0];let extra="";
+    if(v.blk){const sp=blkSpan(v.k||"",v);extra=v.part===1?`<span class="b15">1h30 · ${sp.deb}–${sp.fin}</span>`:`<span class="b15">suite · fin ${sp.fin}</span>`}
+    return one(v,false)+extra}
   const sorted=[...items].sort((x,y)=>(x.w||"").localeCompare(y.w||""));
   return sorted.map(v=>one(v,true)).join("")+(sorted.length===1?`<span class="hl muted">${sorted[0].w==="A"?"B":"A"} : libre</span>`:"");
 }
@@ -926,12 +942,13 @@ function gridHTML(kind,id){
     for(let d=0;d<5;d++){const k=d+"-"+s;
       if(isOff(d,s)){h+=`<td class="c off" title="Pas de cours"></td>`;continue}
       let items=[];
-      if(kind==="classe") items=itemsAt(id,k).map(v=>({...v,c:id}));
-      else if(kind==="salle") items=S.classes.flatMap(c=>itemsAt(c.id,k).filter(v=>v.r===id).map(v=>({...v,c:c.id})));
-      else items=(pc[k]||[]);
+      if(kind==="classe") items=itemsAt(id,k).map(v=>({...v,c:id,k}));
+      else if(kind==="salle") items=S.classes.flatMap(c=>itemsAt(c.id,k).filter(v=>v.r===id).map(v=>({...v,c:c.id,k})));
+      else items=(pc[k]||[]).map(v=>({...v,k}));
       const split=items.length>1||(items[0]&&items[0].w);
       if(kind==="classe"){const sel=UI.sel&&UI.sel.k===k;let st="";if(UI.sel&&!sel){const r=moveCheck(id,UI.sel.k,k);st=r===true?"drop":"no"}
-        if(items.length) h+=`<td class="c f ${split?"split":""} ${clash.has(k)?"clash":""} ${sel?"sel":""} ${st}" style="${cellStyle(items)}" data-act="cell" data-k="${k}">${cellBody(items,"classe")}</td>`;
+        const bc=items[0]?.blk?"blk"+items[0].part:"";
+        if(items.length) h+=`<td class="c f ${bc} ${split?"split":""} ${clash.has(k)?"clash":""} ${sel||(UI.sel&&blockKeys(id,UI.sel.k)?.includes(k))?"sel":""} ${st}" style="${cellStyle(items)}" data-act="cell" data-k="${k}">${cellBody(items,"classe")}</td>`;
         else h+=`<td class="c ${st}" data-act="cell" data-k="${k}" aria-label="Case libre"></td>`;
       }else if(items.length){h+=`<td class="c f ${split?"split":""} ${clash.has(k)?"clash":""}" style="${cellStyle(items)}" data-act="goClass" data-v="${items[0].c}">${cellBody(items,kind)}</td>`}
       else h+=`<td class="c" style="cursor:default"></td>`;
@@ -956,9 +973,9 @@ function ficheSalle(r){let n=0;for(const c of S.classes)for(const v of Object.va
   ${gridHTML("salle",r.id)}${signLine()}</section>`}
 function profRecap(p){
   const cells=profCells(p.id);const g={};
-  for(const x of cells){const c=cls(x.c);const key=x.m+"|"+c.niveau;(g[key]=g[key]||{m:x.m,n:c.niveau,cl:{},h:0}).h+=x.w?0.5:1;g[key].cl[c.id]=c}
+  for(const x of cells){const c=cls(x.c);const key=x.m+"|"+c.niveau;(g[key]=g[key]||{m:x.m,n:c.niveau,cl:{},h:0}).h+=wOf(x);g[key].cl[c.id]=c}
   const rows=Object.values(g).sort((a,b)=>NIV.findIndex(n=>n.id===a.n)-NIV.findIndex(n=>n.id===b.n));
-  const total=cells.reduce((a,x)=>a+(x.w?0.5:1),0);const sup=Math.max(0,total-(+p.du||0));
+  const total=cells.reduce((a,x)=>a+wOf(x),0);const sup=Math.max(0,total-(+p.du||0));
   const ppOf=S.classes.filter(c=>c.pp===p.id).map(c=>c.nom).join(", ");
   return {rows,total,sup,ppOf};
 }
@@ -1118,18 +1135,30 @@ function canPut(cid,k,pid,rid,w){const [d,sl]=BKEY(k).split("-").map(Number);if(
   return true}
 // Peut-on déplacer le contenu de la case a vers k (échange si k est occupée) ?
 function freeRoom(cid,k,v){for(const rid of [...new Set([v.r,...roomChoices(cid,v.m)])]){if(canPut(cid,k,null,rid,v.w)===true)return rid}return null}
+function blockTarget(cid,a,k){const ba=blockKeys(cid,a);if(!ba)return null;const [d,s]=k.split("-").map(Number);const t=[k,d+"-"+(s+1)];
+  if(s+1>=nS()||isOff(d,s+1)||grp(s+1)!==grp(s))return {err:"une séance de 1h30 demande deux heures de suite"};
+  for(const x of t) if(!ba.includes(x)&&itemsAt(cid,x).length) return {err:"il faut deux heures libres de suite pour la séance de 1h30"};
+  return {ba,t}}
 function moveCheck(cid,a,k){const A=itemsAt(cid,a),B=itemsAt(cid,k);if(!A.length||a===k)return "same";
+  const bt=blockTarget(cid,a,k);
+  if(bt){if(bt.err)return mat(A[0].m)?.code+" : "+bt.err;const v1=(S.sched[cid]||{})[bt.ba[0]];
+    for(const x of bt.t){if(bt.ba.includes(x)&&x!==bt.t[0]&&x!==bt.t[1])continue;const r=canPut(cid,x,v1.p,null);if(r!==true)return mat(v1.m)?.code+" : "+r;if(v1.r&&freeRoom(cid,x,v1)===null)return mat(v1.m)?.code+" : aucune salle libre"}
+    return true}
+  if(blockKeys(cid,k))return "séance de 1h30 : touchez-la pour la déplacer en entier";
   for(const v of A){const r=canPut(cid,k,v.p,null,v.w);if(r!==true)return mat(v.m)?.code+" : "+r;if(v.r&&freeRoom(cid,k,v)===null)return mat(v.m)?.code+" : aucune salle libre"}
   for(const v of B){const r=canPut(cid,a,v.p,null,v.w);if(r!==true)return mat(v.m)?.code+" : "+r;if(v.r&&freeRoom(cid,a,v)===null)return mat(v.m)?.code+" : aucune salle libre"}
   return true}
 function swapBundles(sc,a,k){const A=[sc[a],sc[a+"/B"]],B=[sc[k],sc[k+"/B"]];
   [[a,B],[k,A]].forEach(([key,vals])=>{if(vals[0])sc[key]=vals[0];else delete sc[key];if(vals[1])sc[key+"/B"]=vals[1];else delete sc[key+"/B"]})}
+function applyMove(cid,a,k){const sc=S.sched[cid]=S.sched[cid]||{};const bt=blockTarget(cid,a,k);
+  if(bt&&!bt.err){const v1=sc[bt.ba[0]],v2=sc[bt.ba[1]];delete sc[bt.ba[0]];delete sc[bt.ba[1]];sc[bt.t[0]]=v1;sc[bt.t[1]]=v2;return [...new Set([...bt.ba,...bt.t])]}
+  swapBundles(sc,a,k);return [a,k]}
 function cellTap(k){const cid=UI.edtId;const sc=S.sched[cid]=S.sched[cid]||{};
   if(!UI.sel){if(itemsAt(cid,k).length){UI.sel={k};render()}else sheetAddLesson(k);return}
   const a=UI.sel.k;if(a===k){UI.sel=null;render();return}
   const r=moveCheck(cid,a,k);if(r!==true){toast("Impossible : "+r);return}
-  const hadB=itemsAt(cid,k).length;swapBundles(sc,a,k);let moved=[];
-  for(const key of [a,k])for(const v of itemsAt(cid,key)){if(v.r&&canPut(cid,key,null,v.r,v.w)!==true){const r2=freeRoom(cid,key,v);if(r2){moved.push(mat(v.m)?.code+" → "+salleNom(r2));v.r=r2}}}
+  const hadB=itemsAt(cid,k).length&&!blockKeys(cid,a);const keys=applyMove(cid,a,k);let moved=[];
+  for(const key of keys)for(const v of itemsAt(cid,key)){if(v.r&&canPut(cid,key,null,v.r,v.w)!==true){const r2=freeRoom(cid,key,v);if(r2){moved.push(mat(v.m)?.code+" → "+salleNom(r2));v.r=r2}}}
   UI.sel=null;save();render();toast((hadB?"Cours échangés":"Cours déplacé")+(moved.length?" · "+moved.join(", "):""))}
 
 /* ===================== Changement d'horaire en cours d'année ===================== */
@@ -1147,9 +1176,16 @@ function planChange(pid,newInd){
   const okAt=(cid,v,k)=>{const [d,s]=k.split("-").map(Number);if(isOff(d,s))return false;if(v.p&&(indOf(v.p)[k]||(pm(v.p,k,cid)&MASK(v))))return false;if(v.r&&(rm(v.r,k,cid)&MASK(v)))return false;return true};
   const sameDay=(cid,m,d,ex)=>Object.entries(work[cid]||{}).some(([k,v])=>v.m===m&&BKEY(k).split("-")[0]==d&&!ex.includes(BKEY(k)));
   const conflicts=[];for(const c of S.classes){const seen=new Set();for(const [k,v] of Object.entries(work[c.id]||{})){const bk=BKEY(k);if(v.p===pid&&newInd[bk]&&!seen.has(bk)){seen.add(bk);conflicts.push({c:c.id,k:bk})}}}
-  const moves=[],fails=[];
+  const moves=[],fails=[];const doneBlk=new Set();
   for(const cf of conflicts){const sc=work[cf.c];const A=its(cf.c,cf.k);if(!A.length)continue;let best=null;
-    for(let d=0;d<5;d++)for(let s=0;s<N;s++){const k=d+"-"+s;if(k===cf.k)continue;const B=its(cf.c,k);
+    if(A[0].blk){if(doneBlk.has(A[0].blk))continue;doneBlk.add(A[0].blk);
+      const [d0,s0]=cf.k.split("-").map(Number);const k1=A[0].part===1?cf.k:d0+"-"+(s0-1),k2=d0+"-"+(+k1.split("-")[1]+1);const v1=sc[k1],v2=sc[k2];
+      for(let d=0;d<5&&!best;d++)for(let s=0;s+1<N;s++){const t1=d+"-"+s,t2=d+"-"+(s+1);if(grp(s)!==grp(s+1))continue;
+        const free=x=>x===k1||x===k2||!its(cf.c,x).length;if(!free(t1)||!free(t2))continue;
+        if(!okAt(cf.c,v1,t1)||!okAt(cf.c,v2,t2))continue;best={t1,t2};break}
+      if(!best){fails.push({c:cf.c,k:k1,m:v1.m});continue}
+      delete sc[k1];delete sc[k2];sc[best.t1]=v1;sc[best.t2]=v2;moves.push({c:cf.c,from:k1,to:best.t1,m:v1.m,p:v1.p,swap:null});continue}
+    for(let d=0;d<5;d++)for(let s=0;s<N;s++){const k=d+"-"+s;if(k===cf.k)continue;const B=its(cf.c,k);if(B.some(v=>v.blk))continue;
       if(!A.every(v=>okAt(cf.c,v,k)))continue;
       if(!B.every(v=>okAt(cf.c,v,cf.k)))continue;
       let score=B.length?4:0;if(sameDay(cf.c,A[0].m,d,[cf.k,k]))score+=6;if(B.length&&sameDay(cf.c,B[0].m,+cf.k.split("-")[0],[cf.k,k]))score+=6;
@@ -1228,10 +1264,10 @@ function pdfPage(doc,kind,id,first){
     doc.setTextColor(20);doc.setFontSize(7.4);doc.text(pdfTxt(ppVal),M+2.5,32.4,{maxWidth:48})}
   const N=nS();const body=[];let lookup,anyHalf=false;
   if(kind==="classe"){lookup=k=>{const it=itemsAt(id,k);if(!it.length)return null;
-    if(it.length===1&&!it[0].w){const v=it[0],m=mat(v.m);return {t:(m?.code||"")+(v.r?" · "+salleNom(v.r):"")+"\n"+(v.p?shortName(prof(v.p)?.nom||""):"(à pourvoir)"),h:m?.h}}
+    if(it.length===1&&!it[0].w){const v=it[0],m=mat(v.m);const sp=v.blk?blkSpan(k,v):null;return {t:(m?.code||"")+(v.r?" · "+salleNom(v.r):"")+"\n"+(v.p?shortName(prof(v.p)?.nom||""):"(à pourvoir)")+(sp?(v.part===1?"\n1h30 : "+sp.deb+"-"+sp.fin:"\n(suite, fin "+sp.fin+")"):""),h:m?.h}}
     return {t:it.sort((a,b)=>a.w.localeCompare(b.w)).map(v=>"Sem. "+v.w+" : "+(mat(v.m)?.code||"")+" "+(v.p?shortName(prof(v.p)?.nom||""):"(à pourvoir)")).join("\n")+(it.length===1?"\nSem. "+(it[0].w==="A"?"B":"A")+" : libre":"")+(it[0].r?"\n"+salleNom(it[0].r):""),h:mat(it[0].m)?.h,half:true}}}
   else{const pc=groupCells(profCells(id));lookup=k=>{const it=pc[k];if(!it)return null;
-    if(it.length===1&&!it[0].w){const v=it[0],m=mat(v.m);return {t:(cls(v.c)?.nom||"")+"\n"+(m?.code||"")+(v.r?" · "+salleNom(v.r):""),h:m?.h}}
+    if(it.length===1&&!it[0].w){const v=it[0],m=mat(v.m);const sp=v.blk?blkSpan(k,v):null;return {t:(cls(v.c)?.nom||"")+"\n"+(m?.code||"")+(v.r?" · "+salleNom(v.r):"")+(sp?(v.part===1?"\n1h30 : "+sp.deb+"-"+sp.fin:"\n(suite, fin "+sp.fin+")"):""),h:m?.h}}
     return {t:it.sort((a,b)=>a.w.localeCompare(b.w)).map(v=>"Sem. "+v.w+" : "+(cls(v.c)?.nom||"")+" "+(mat(v.m)?.code||"")+(v.r?" · "+salleNom(v.r):"")).join("\n")+(it.length===1?"\nSem. "+(it[0].w==="A"?"B":"A")+" : libre":""),h:mat(it[0].m)?.h,half:true}}}
   for(let s=0;s<N;s++){const bl=breakLabel(s);
     if(bl) body.push([{content:pdfTxt(bl.toUpperCase()),colSpan:6,styles:{halign:"center",fontSize:5,textColor:120,fillColor:[244,247,245],cellPadding:0.5,minCellHeight:3.2}}]);
@@ -1361,12 +1397,15 @@ document.addEventListener("click",async e=>{
     case "cell": cellTap(t.dataset.k);break;
     case "pickRoom": sheetRoom();break;
     case "repair":{snapshot("Avant réparation des conflits");const r=repairConflicts();save();render();toast(r.left?r.fixed+" cours déplacé(s), "+r.left+" conflit(s) à régler à la main":"Conflits réglés : "+r.fixed+" cours déplacé(s)");break}
-    case "setRoom":{const it=itemsAt(UI.edtId,UI.sel.k);it.forEach(x=>x.r=v);save();closeSheet();render();toast("Salle changée : "+salleNom(v));break}
+    case "setRoom":{const bk=blockKeys(UI.edtId,UI.sel.k);const it=(bk||[UI.sel.k]).flatMap(x=>itemsAt(UI.edtId,x));it.forEach(x=>x.r=v);save();closeSheet();render();toast("Salle changée : "+salleNom(v));break}
     case "maxAuto": sheetCtx.auto=true;profSheetInfo();break;
     case "cancelSel": UI.sel=null;render();break;
-    case "clearCell": delete (S.sched[UI.edtId]||{})[UI.sel.k];delete (S.sched[UI.edtId]||{})[UI.sel.k+"/B"];UI.sel=null;save();render();toast("Cours retiré");break;
+    case "clearCell": {const bk=blockKeys(UI.edtId,UI.sel.k);(bk||[UI.sel.k]).forEach(x=>{delete (S.sched[UI.edtId]||{})[x];delete (S.sched[UI.edtId]||{})[x+"/B"]})}UI.sel=null;save();render();toast("Cours retiré");break;
     case "addLesson":{const k=t.dataset.k,m=t.dataset.m;const pid=(S.aff[UI.edtId]||{})[m]||null;
-      {const need=(+((S.grille[cls(UI.edtId).niveau]||{})[m])||0)-placedCount(UI.edtId,m);const cell={m,p:pid&&prof(pid)?pid:null,r:roomFor(UI.edtId,m)};if(need>0&&need<1)cell.w="A";(S.sched[UI.edtId]=S.sched[UI.edtId]||{})[k]=cell}save();closeSheet();render();toast("Cours ajouté");break}
+      {const rem=(+((S.grille[cls(UI.edtId).niveau]||{})[m])||0)-placedCount(UI.edtId,m);const base={m,p:pid&&prof(pid)?pid:null,r:roomFor(UI.edtId,m)};const sc=S.sched[UI.edtId]=S.sched[UI.edtId]||{};
+       const [d,sl]=k.split("-").map(Number);const k2=d+"-"+(sl+1);const frac=Math.abs((rem%1)-0.5)<1e-9;
+       if(rem>=1.5&&frac&&sl+1<nS()&&!isOff(d,sl+1)&&grp(sl+1)===grp(sl)&&!itemsAt(UI.edtId,k2).length&&canPut(UI.edtId,k2,base.p,base.r)===true){const b=uid();sc[k]={...base,q:0.75,blk:b,part:1};sc[k2]={...base,q:0.75,blk:b,part:2};toast("Séance de 1h30 ajoutée")}
+       else{if(rem>0&&rem<1)base.q=rem;sc[k]=base;toast("Cours ajouté")}}save();closeSheet();render();break}
     case "addSlot":{const l=S.creneaux[S.creneaux.length-1];S.creneaux.push({debut:l?l.fin:"07H00",fin:"",g:l?l.g:1});save();render();break}
     case "delSlot":{const i=+t.dataset.i;confirmBox("Supprimer ce créneau ? Les cours placés à cette heure seront retirés.","Supprimer",()=>{
       const shift=o=>{const n={};for(const k in o){const [d,s]=k.split("-").map(Number);if(s===i)continue;n[d+"-"+(s>i?s-1:s)]=o[k]}return n};
