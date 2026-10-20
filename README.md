@@ -16,6 +16,10 @@ HorairePro est une application mobile installable, pensée pour les collèges et
 - **Fiches imprimables** au format officiel (en-tête Ministère / République, tableau récapitulatif, heures supplémentaires) et **export PDF** de toutes les classes ou tous les professeurs.
 - **Hors connexion** après la première ouverture. Données stockées sur l'appareil, avec sauvegarde / restauration en fichier.
 
+## Version mobile et version ordinateur
+
+L'application s'adapte toute seule : version mobile sur téléphone, version ordinateur (menu latéral, écrans larges) sur PC et tablette. Le choix peut être forcé dans **Réglages → Affichage**.
+
 ## Installer sur un téléphone
 
 1. Ouvrir l'adresse de l'application dans Chrome.

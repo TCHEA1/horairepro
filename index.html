@@ -219,6 +219,61 @@ table.vol tfoot td{font-weight:700;font-family:var(--f-mono);text-align:center}
 .illus .badge{position:absolute;right:14px;bottom:14px;background:var(--accent);color:#fff;border-radius:16px;padding:10px 14px;font-size:12px;font-weight:700;box-shadow:var(--sh2)}
 .illus .badge b{display:block;font-size:20px}
 .brandline{display:flex;align-items:center;gap:8px;justify-content:center;color:var(--muted);font-size:12px;padding-top:4px}
+
+/* ======== Version ordinateur (menu latéral, contenu large) ======== */
+.sb-brand,.pick-chips{display:none}
+.hgrid,.hcol,.cards{display:contents}
+[data-layout="desk"] body{background-image:linear-gradient(180deg,var(--bg2),var(--bg) 420px)}
+[data-layout="desk"] #app{max-width:none;box-shadow:none;background:none;display:grid;grid-template-columns:256px minmax(0,1fr);grid-template-rows:auto 1fr;grid-template-areas:"nav top" "nav main";min-height:100vh}
+[data-layout="desk"] nav.tabs{grid-area:nav;position:sticky;top:0;left:auto;transform:none;width:auto;height:100vh;border-radius:0 26px 26px 0;display:flex;flex-direction:column;gap:4px;padding:22px 14px;box-shadow:6px 0 30px rgb(16 64 42 / .06);align-self:start}
+[data-layout="desk"] .sb-brand{display:flex;align-items:center;gap:10px;font-weight:800;font-size:19px;padding:4px 10px 22px}
+[data-layout="desk"] .sb-brand .tile{width:40px;height:40px}
+[data-layout="desk"] nav.tabs button{flex-direction:row;justify-content:flex-start;gap:12px;font-size:14.5px;padding:6px 10px;border-radius:14px;width:100%}
+[data-layout="desk"] nav.tabs button:hover{background:var(--sunk)}
+[data-layout="desk"] nav.tabs button[aria-current="true"]{background:var(--accent-soft)}
+[data-layout="desk"] nav.tabs button[aria-current="true"] .pill{background:var(--accent);color:var(--accent-ink)}
+[data-layout="desk"] nav.tabs .pill{width:38px;height:38px;border-radius:12px}
+[data-layout="desk"] nav.tabs .sb-foot{margin-top:auto;font-size:11.5px;color:var(--muted);padding:10px}
+[data-layout="desk"] .top{grid-area:top;top:0;padding:26px 36px 14px;background:transparent;backdrop-filter:none;-webkit-backdrop-filter:none;position:static}
+[data-layout="desk"] .top h1{font-size:26px}
+[data-layout="desk"] .top .logo{width:52px;height:52px}
+[data-layout="desk"] main{grid-area:main;padding:8px 36px 48px;max-width:1240px;width:100%;gap:20px}
+[data-layout="desk"] .hgrid{display:grid;grid-template-columns:minmax(0,1.15fr) minmax(0,1fr);gap:20px;align-items:start}
+[data-layout="desk"] .hcol{display:flex;flex-direction:column;gap:20px;min-width:0}
+[data-layout="desk"] .hero{padding:28px}
+[data-layout="desk"] .hero .big{font-size:46px}
+[data-layout="desk"] .cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(340px,1fr));gap:20px;align-items:start}
+[data-layout="desk"] .card .list{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));column-gap:28px}
+[data-layout="desk"] .card .list .item + .item{border-top:0}
+[data-layout="desk"] .card .list .item{border-bottom:1px solid var(--line)}
+[data-layout="desk"] .seg{max-width:620px}
+[data-layout="desk"] .pick-chips{display:flex;flex-wrap:wrap;gap:8px}
+[data-layout="desk"] .pick-chips button{border:0;background:var(--surface);box-shadow:var(--sh);border-radius:999px;padding:8px 14px;font-weight:600;font-size:13px;cursor:pointer;color:var(--ink)}
+[data-layout="desk"] .pick-chips button[aria-pressed="true"]{background:var(--accent);color:var(--accent-ink)}
+[data-layout="desk"] .edt-pick{display:none}
+[data-layout="desk"] .fiche{padding:26px}
+[data-layout="desk"] table.edt td.c{height:62px}
+[data-layout="desk"] table.edt td.c b{font-size:14px}
+[data-layout="desk"] table.edt td.c span{font-size:11.5px}
+[data-layout="desk"] table.edt th.h{width:86px}
+[data-layout="desk"] table.edt td.h{font-size:11.5px}
+[data-layout="desk"] .fiche-head{font-size:12.5px}
+[data-layout="desk"] .scroll{margin:0;padding:0}
+[data-layout="desk"] .scrim{align-items:center;padding:24px}
+[data-layout="desk"] .sheet{border-radius:26px;max-width:600px;max-height:90vh}
+[data-layout="desk"] .actionbar,[data-layout="desk"] .toast{left:calc(256px + (100% - 256px) / 2)}
+[data-layout="desk"] .actionbar{width:min(100% - 256px,620px);bottom:24px}
+[data-layout="desk"] .toast{bottom:28px}
+[data-layout="desk"] .welcome{display:grid;grid-template-columns:1fr 1fr;align-items:center;gap:56px;max-width:1120px;margin:0 auto;padding:56px 40px;grid-template-areas:"brand illus" "text illus" "cta illus" "gl illus";align-content:center}
+[data-layout="desk"] .welcome > .brand{grid-area:brand}
+[data-layout="desk"] .welcome > .wtext{grid-area:text}
+[data-layout="desk"] .welcome > .illus{grid-area:illus;min-height:460px}
+[data-layout="desk"] .welcome > .btn{grid-area:cta;justify-self:start;width:auto;padding-inline:30px}
+[data-layout="desk"] .welcome > .gl{grid-area:gl;text-align:left}
+[data-layout="desk"] .welcome h1{font-size:52px}
+[data-layout="desk"] #app:has(.welcome){display:block}
+[data-layout="desk"] .welcome{background:none;min-height:100vh}
+.layout-seg{max-width:420px}
 </style>
 
 <div id="app"></div>
@@ -448,15 +503,15 @@ function render(){
   <button class="logo" data-act="tab" data-v="set" aria-label="Établissement">${e.logo?`<img src="${e.logo}" alt="">`:esc(initials)}</button></header>
   <main id="main">${({home:vHome,data:vData,gen:vGen,edt:vEdt,set:vSet})[UI.tab]()}</main>
   ${UI.tab==="edt"&&UI.sel?vActionBar():""}
-  <nav class="tabs">${[["home","Accueil"],["data","Saisie"],["gen","Générer"],["edt","Emplois"],["set","Réglages"]].map(([k,l])=>
-    `<button data-act="tab" data-v="${k}" aria-current="${UI.tab===k}"><span class="pill"><svg viewBox="0 0 24 24">${ICON[k]}</svg></span>${l}</button>`).join("")}</nav>`;
+  <nav class="tabs"><div class="sb-brand"><span class="tile solid">${svg("edt")}</span>${APP}</div>${[["home","Accueil"],["data","Saisie"],["gen","Générer"],["edt","Emplois du temps"],["set","Réglages"]].map(([k,l])=>
+    `<button data-act="tab" data-v="${k}" aria-current="${UI.tab===k}"><span class="pill"><svg viewBox="0 0 24 24">${ICON[k]}</svg></span>${UI.lay==="desk"?l:l.split(" ")[0]==="Emplois"?"Emplois":l}</button>`).join("")}${UI.lay==="desk"?`<div class="sb-foot">${esc(S.etab.nom||"")}<br>Année ${esc(S.etab.annee||"")}</div>`:""}</nav>`;
 }
 
 const MARK=`<svg viewBox="0 0 64 64" width="46" height="46" aria-hidden="true"><rect x="8" y="12" width="48" height="42" rx="7" fill="none" stroke="var(--accent-ink)" stroke-width="4"/><path d="M8 24h48" stroke="var(--accent-ink)" stroke-width="4"/><path d="M20 6v10M44 6v10" stroke="var(--accent-ink)" stroke-width="4" stroke-linecap="round"/><rect x="15" y="30" width="10" height="8" rx="2" fill="var(--accent-ink)"/><rect x="27" y="30" width="10" height="8" rx="2" fill="var(--warm)"/><rect x="39" y="41" width="10" height="8" rx="2" fill="var(--accent-ink)"/><rect x="15" y="41" width="10" height="8" rx="2" fill="var(--accent-ink)" opacity=".45"/></svg>`;
 function vWelcome(){
   const pat=[215,0,28,255,0, 0,120,0,350,190, 45,0,255,0,28, 300,215,0,120,0, 0,190,350,0,45];
   return `<div class="welcome"><div class="brand"><span class="tile solid">${svg("edt")}</span>${APP}</div>
-  <div style="display:flex;flex-direction:column;gap:10px"><h1>Vos emplois du temps, prêts en une minute</h1><p>Toutes les classes et tous les professeurs de l'établissement, sans aucun conflit d'horaire.</p></div>
+  <div class="wtext" style="display:flex;flex-direction:column;gap:10px"><h1>Vos emplois du temps, prêts en une minute</h1><p>Toutes les classes et tous les professeurs de l'établissement, sans aucun conflit d'horaire.</p></div>
   <div class="illus"><div class="ih"><span>6è1 · Semaine</span><span>LUN – VEN</span></div>
   <div class="ig">${pat.map(h=>h?`<i class="f" style="--h:${h}"></i>`:"<i></i>").join("")}</div>
   <div class="badge">Sans conflit<b>100 %</b></div></div>
@@ -477,7 +532,7 @@ function vHome(){
   const pct=need?Math.round(placed/need*100):0;const r=S.gen.report;
   return `
   ${S.exemple?`<div class="banner"><span style="flex:1;min-width:190px"><b>Données d'exemple.</b> Professeurs et effectifs fictifs, pour découvrir l'appli.</span><button class="btn" data-act="clearSample">Commencer à zéro</button></div>`:""}
-  <section class="hero"><div class="deco"></div>
+  <div class="hgrid"><div class="hcol"><section class="hero"><div class="deco"></div>
     <span class="lbl">Heures de cours placées</span>
     <span class="big">${placed}<small> / ${need} h</small></span>
     <span class="sub"><span class="dot"></span>${r?(r.miss?r.miss+" h à placer à la main":"100 % placé, sans conflit"):"Lancez la génération"} · ${S.classes.length} classes · ${S.profs.length} profs</span>
@@ -488,11 +543,11 @@ function vHome(){
     <button data-act="goStep" data-v="profs"><span class="qi">${svg("users")}</span>Profs</button>
     <button data-act="tab" data-v="edt"><span class="qi">${svg("file")}</span>Emplois</button>
   </div>
-  <div class="sec-head"><h3>Étapes de préparation</h3><span class="small muted">${st.filter(x=>x[5]).length}/6</span></div>
+  <div class="tip"><span class="tile green" style="width:36px;height:36px">${svg("bulb")}</span><div><b>Astuce</b>Touchez un cours dans un emploi du temps, puis une autre case, pour les échanger. L'appli vérifie que le professeur est libre.</div></div></div>
+  <div class="hcol"><div class="sec-head"><h3>Étapes de préparation</h3><span class="small muted">${st.filter(x=>x[5]).length}/6</span></div>
   <section class="card" style="padding-block:6px"><div class="steps">
     ${st.map(([k,ic,tn,t,s,done])=>`<button class="step" data-act="goStep" data-v="${k}"><span class="tile ${tn}">${svg(ic)}</span><span class="t"><b>${t}</b><span>${s}</span></span><span class="end ${done?"ok":"todo"}">${done?"Terminé":"À faire"}</span></button>`).join("")}
-  </div></section>
-  <div class="tip"><span class="tile green" style="width:36px;height:36px">${svg("bulb")}</span><div><b>Astuce</b>Touchez un cours dans un emploi du temps, puis une autre case, pour les échanger. L'appli vérifie que le professeur est libre.</div></div>`;
+  </div></section></div></div>`;
 }
 
 /* ---------- Saisie ---------- */
@@ -532,14 +587,14 @@ function vAff(){
   return `<section class="card"><div class="sec-title"><div><h3>Qui enseigne quoi</h3><span class="muted small">${ua?ua+" cours sans professeur":"Toutes les matières sont couvertes"}</span></div>
   <button class="btn primary" data-act="autoAff">Affecter automatiquement</button></div>
   <p class="muted small" style="margin:0">L'appli répartit les classes entre les professeurs de chaque matière en respectant leur maximum d'heures. Vous pouvez changer chaque choix.</p></section>
-  ${S.classes.map(c=>`<section class="card"><div class="sec-title"><h3>${esc(c.nom)}</h3><span class="chip">${classHours(c)} h</span></div>
+  <div class="cards">${S.classes.map(c=>`<section class="card"><div class="sec-title"><h3>${esc(c.nom)}</h3><span class="chip">${classHours(c)} h</span></div>
   <div class="list">${needOf(c).map(x=>{const m=mat(x.m);const cur=(S.aff[c.id]||{})[x.m];const cands=S.profs.filter(p=>p.mats.includes(x.m));const others=S.profs.filter(p=>!p.mats.includes(x.m));
     return `<div class="item" style="cursor:default"><span class="mat" style="${hcode(m.h)}">${esc(m.code)}</span><span class="small muted" style="width:30px">${x.h} h</span>
     <select class="in" style="flex:1;min-width:0" id="a-${c.id}-${x.m}" data-act="setAff" data-c="${c.id}" data-m="${x.m}">
       <option value="">— Aucun professeur —</option>
       ${cands.map(p=>`<option value="${p.id}" ${cur===p.id?"selected":""}>${esc(p.nom)} (${profLoadAff(p.id)}/${p.max} h)</option>`).join("")}
       ${others.length?`<optgroup label="Autres professeurs">${others.map(p=>`<option value="${p.id}" ${cur===p.id?"selected":""}>${esc(p.nom)}</option>`).join("")}</optgroup>`:""}
-    </select></div>`}).join("")||`<div class="muted small">Aucun volume horaire défini pour ce niveau.</div>`}</div></section>`).join("")}`;
+    </select></div>`}).join("")||`<div class="muted small">Aucun volume horaire défini pour ce niveau.</div>`}</div></section>`).join("")}</div>`;
 }
 
 /* ---------- Générer ---------- */
@@ -564,7 +619,8 @@ function vEdt(){
   if(!arr.find(x=>x.id===UI.edtId)) UI.edtId=arr[0].id;
   const id=UI.edtId;
   return `<div class="seg"><button data-act="edtMode" data-v="classe" aria-pressed="${mode==="classe"}">Par classe</button><button data-act="edtMode" data-v="prof" aria-pressed="${mode==="prof"}">Par professeur</button></div>
-  <div class="row"><select class="in grow" style="flex:1" id="edt-pick" data-act="edtPick">${arr.map(x=>`<option value="${x.id}" ${x.id===id?"selected":""}>${esc(x.nom)}</option>`).join("")}</select>
+  <div class="pick-chips">${arr.map(x=>`<button data-act="goPick" data-v="${x.id}" aria-pressed="${x.id===id}">${esc(x.nom)}</button>`).join("")}</div>
+  <div class="row"><select class="in grow edt-pick" style="flex:1" id="edt-pick" data-act="edtPick">${arr.map(x=>`<option value="${x.id}" ${x.id===id?"selected":""}>${esc(x.nom)}</option>`).join("")}</select>
   <button class="btn" data-act="pdfOne">PDF</button><button class="btn primary" data-act="pdfAll">Tout en PDF</button></div>
   ${mode==="classe"?ficheClasse(cls(id)):ficheProf(prof(id))}`;
 }
@@ -576,7 +632,7 @@ function ficheHead(title){const e=S.etab;return `<div class="fiche-head ${e.logo
   <div class="fiche-title">${title}</div>${e.applic?`<div class="small muted" style="text-align:center">Applicable à partir du ${esc(e.applic)}</div>`:""}`}
 function signLine(){const e=S.etab;return `<div class="small" style="display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap"><i>${esc(e.devise||"")}</i><span style="text-align:right"><b style="text-decoration:underline">${esc(e.etudesTitre||"LE DIRECTEUR DES ÉTUDES")}</b>${e.etudesNom?"<br>"+esc(e.etudesNom):""}</span></div>`}
 function gridHTML(kind,id){
-  const N=nS();let h=`<div class="scroll"><table class="edt"><thead><tr><th class="h">Horaire</th>${JOURS.map(j=>`<th>${j.slice(0,3)}<span class="small" style="display:none">${j}</span></th>`).join("")}</tr></thead><tbody>`;
+  const N=nS();let h=`<div class="scroll"><table class="edt"><thead><tr><th class="h">Horaire</th>${JOURS.map(j=>`<th>${UI.lay==="desk"?j:j.slice(0,3)}</th>`).join("")}</tr></thead><tbody>`;
   const pc=kind==="prof"?Object.fromEntries(profCells(id).map(x=>[x.k,x])):null;
   for(let s=0;s<N;s++){const bl=breakLabel(s);if(bl) h+=`<tr><td></td><td class="brk" colspan="5">${bl}</td></tr>`;
     const cr=S.creneaux[s];h+=`<tr><td class="h">${cr.debut}<br>${cr.fin}</td>`;
@@ -637,7 +693,10 @@ function vSet(){
   const e=S.etab;const N=nS();
   const fld=([k,l,ph,type])=>`<label class="f">${l}<input id="e-${k}" data-act="etab" data-k="${k}" value="${esc(e[k]||"")}" ${ph?`placeholder="${esc(ph)}"`:""} ${type?`type="${type}" inputmode="${type==="tel"?"tel":type==="email"?"email":"text"}"`:""}></label>`;
   const sel=(k,l,opts)=>`<label class="f">${l}<select id="e-${k}" data-act="etab" data-k="${k}">${opts.map(o=>`<option ${e[k]===o?"selected":""}>${o}</option>`).join("")}</select></label>`;
-  return `<section class="card"><h3>Logo de l'établissement</h3>
+  const L=UI.layPref;
+  return `<section class="card"><h3>Affichage</h3><div class="seg layout-seg">${[["auto","Automatique"],["mobile","Mobile"],["desk","Ordinateur"]].map(([k,l])=>`<button data-act="layPref" data-v="${k}" aria-pressed="${L===k}">${l}</button>`).join("")}</div>
+  <span class="small muted">Automatique : version ordinateur sur grand écran, version mobile sur téléphone.</span></section>
+  <section class="card"><h3>Logo de l'établissement</h3>
   <div class="logo-pick"><div class="prev">${e.logo?`<img src="${e.logo}" alt="Logo">`:"Aucun logo"}</div>
   <div style="display:flex;flex-direction:column;gap:8px"><button class="btn" data-act="pickLogo">${e.logo?"Changer le logo":"Choisir une image"}</button>${e.logo?`<button class="btn ghost danger" data-act="delLogo">Retirer</button>`:""}
   <span class="small muted">Il apparaît en haut de chaque emploi du temps et dans les PDF.</span></div></div></section>
@@ -868,6 +927,8 @@ document.addEventListener("click",async e=>{
       S.profs.forEach(p=>p.mats=p.mats.filter(m=>m!==v));save();render()});break;
     case "edtMode": UI.edtMode=v;UI.edtId=null;UI.sel=null;render();break;
     case "openEdt": UI.tab="edt";UI.edtMode="classe";UI.edtId=v;UI.sel=null;render();scrollTo(0,0);break;
+    case "layPref": UI.layPref=v;try{localStorage.setItem(LAYKEY,v)}catch(e){}applyLayout();render();toast(v==="desk"?"Version ordinateur":v==="mobile"?"Version mobile":"Affichage automatique");break;
+    case "goPick": UI.edtId=v;UI.sel=null;render();break;
     case "goClass": UI.edtMode="classe";UI.edtId=v;UI.sel=null;render();break;
     case "cell": cellTap(t.dataset.k);break;
     case "cancelSel": UI.sel=null;render();break;
@@ -907,6 +968,15 @@ function runGen(){
   setTimeout(()=>{if(unassignedCount()) autoAssign(true);const r=generate();closeSheet();UI.tab="gen";render();scrollTo(0,0);
     toast(r.miss?r.miss+" h restent à placer à la main":"Emplois du temps générés, sans conflit")},60);
 }
+
+/* ===================== Mise en page mobile / ordinateur ===================== */
+const LAYKEY="horairepro-affichage";
+try{UI.layPref=localStorage.getItem(LAYKEY)||"auto"}catch(e){UI.layPref="auto"}
+const mq=matchMedia("(min-width: 1000px)");
+function applyLayout(){const lay=UI.layPref==="auto"?(mq.matches?"desk":"mob"):(UI.layPref==="desk"?"desk":"mob");
+  const changed=UI.lay!==lay;UI.lay=lay;document.documentElement.dataset.layout=lay;return changed}
+applyLayout();
+mq.addEventListener?.("change",()=>{if(applyLayout()&&S) render()});
 
 /* ===================== Démarrage ===================== */
 (function init(){
