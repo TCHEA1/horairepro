@@ -359,13 +359,13 @@ function defaultEtab(){return {
   devise:"Le Succès par le Travail et la Discipline",annee:"2026-2027",applic:"",logo:""}}
 // Volumes horaires élèves par semaine — Circulaire n°0311/MENA/CAB/DPFC du 01/09/2025 (enseignement secondaire général).
 // « a + (b) » = a h en classe entière + b h en demi-classe : l'élève a a + b heures. 1,5 = 1h30. LV2 « fac » (1re et Tle C, D) incluse.
-// 1re A et Tle A : valeurs de la série A1. PC/SVT de 1re A « 1 + (1h30) quinzaine » arrondis à 1h30.
+// PC et SVT à 1h30 en 6e, 5e, 4e et 2nde A (choix de l'établissement). 1re A et Tle A : valeurs de la série A1. PC/SVT de 1re A « 1 + (1h30) quinzaine » arrondis à 1h30.
 const GRILLE_OFFICIELLE={
   "6e":   {ANG:3,AP:1,EDHC:1,EPS:2,FR:5,HG:2,MATH:4,TICE:1,PC:1.5,SVT:1.5},
   "5e":   {ANG:3,AP:1,EDHC:1,EPS:2,FR:5,HG:2,MATH:4,TICE:1,PC:1.5,SVT:1.5},
   "4e":   {ANG:3,AP:1,EDHC:1,EPS:2,FR:6,HG:3,LV2:3,MATH:4,TICE:1,PC:1.5,SVT:1.5},
   "3e":   {ANG:3,AP:1,EDHC:1,EPS:2,FR:6,HG:4,LV2:3,MATH:4,TICE:1,PC:2,SVT:2},
-  "2ndeA":{ANG:3,EDHC:1,EPS:2,FR:4,HG:4,LV2:3,MATH:3,PC:3.5,SVT:1.5},
+  "2ndeA":{ANG:3,EDHC:1,EPS:2,FR:4,HG:4,LV2:3,MATH:3,PC:1.5,SVT:1.5},
   "2ndeC":{ANG:3,EDHC:1,EPS:2,FR:4,HG:4,LV2:3,MATH:5,PC:5,SVT:2},
   "1reA": {ANG:3,EDHC:1,EPS:2,FR:4,HG:4,LV2:3,MATH:4,PHILO:3,PC:1.5,SVT:1.5},
   "1reC": {ANG:3,EDHC:1,EPS:2,FR:3,HG:4,LV2:2,MATH:6,PHILO:2,PC:5.5,SVT:2},
@@ -385,7 +385,7 @@ function defaultState(){
   const cr=[["07H15","08H10",1],["08H10","09H05",1],["09H05","10H00",1],["10H15","11H10",2],["11H10","12H05",2],
             ["14H00","15H00",3],["15H00","16H00",3],["16H00","17H00",3],["17H00","18H00",3]].map(([debut,fin,g])=>({debut,fin,g}));
   const off={}; for(let s=5;s<9;s++) off["2-"+s]=true; // mercredi après-midi libre
-  return {v:1,gridV:3,at:0,exemple:false,install:"",licence:"",salles:[],history:[],
+  return {v:1,gridV:4,at:0,exemple:false,install:"",licence:"",salles:[],history:[],
     etab:defaultEtab(),
     creneaux:cr,off,matieres:mats,grille,classes:[],profs:[],aff:{},sched:{},
     gen:{bloc2:true,report:null}};
@@ -430,6 +430,7 @@ function migrate(x){const d=defaultState();for(const k in d) if(x[k]===undefined
   if(!x.gridV||x.gridV<3){x.grille=JSON.parse(JSON.stringify(GRILLE_OFFICIELLE));
     if(!x.matieres.find(m=>m.id==="TICE"))x.matieres.push({id:"TICE",code:"TICE",nom:"TICE (informatique)",h:235,bloc:false,matin:false,salle:""});
     const ap=x.matieres.find(m=>m.id==="AP");if(ap&&/Arts plastiques/.test(ap.nom))ap.nom="Dessin / Éducation musicale";x.gridV=3}
+  if(x.gridV<4){["6e","5e","4e","2ndeA"].forEach(n=>{const g=x.grille[n]=x.grille[n]||{};g.PC=1.5;g.SVT=1.5});x.gridV=4}
   x.classes.forEach(c=>{c.salle=c.salle||"";if(c.salle&&!x.salles.find(r=>r.id===c.salle)){let r=x.salles.find(r=>r.nom===c.salle);if(!r){r={id:uid(),nom:c.salle,type:"Classe",multi:false};x.salles.push(r)}c.salle=r.id}});
   x.matieres.forEach(m=>{m.salle=m.salle||"";if(m.labH===undefined)m.labH=(m.id==="PC"||m.id==="SVT")?1:""});
   {const pc=x.matieres.find(m=>m.id==="PC"),svt=x.matieres.find(m=>m.id==="SVT");
