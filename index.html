@@ -162,6 +162,10 @@ table.edt td.c .hl + .hl{margin-top:3px;padding-top:3px;border-top:1px dashed rg
 table.edt td.c .hl b{display:inline;font-size:11px}
 table.edt td.c .hl span{display:inline;font-size:9.5px;opacity:.8}
 table.edt td.c .wk{font-style:normal;font-size:8.5px;font-weight:800;background:var(--cell-ink);color:var(--surface);border-radius:4px;padding:0 4px;margin-left:3px;vertical-align:1px}
+.ppband{display:flex;align-items:center;gap:12px;background:var(--accent-soft);border-radius:16px;padding:10px 12px}
+.ppband .grow span{display:block;font-size:11.5px;color:var(--accent);font-weight:700;text-transform:uppercase;letter-spacing:.05em}
+.ppband .grow b{display:block;font-size:15px}
+.ppband .avatar svg{width:20px;height:20px}
 .wkk{font-size:10px;font-weight:800;background:var(--ink);color:var(--surface);border-radius:4px;padding:0 5px}
 table.edt td.c span.mr{opacity:1;font-weight:600}
 table.edt td.c b{display:block;font-size:12.5px;font-weight:800;line-height:1.15}
@@ -819,7 +823,8 @@ function gridHTML(kind,id){
 function ficheClasse(c){
   const pp=prof(c.pp);const need=needOf(c);
   return `<section class="card fiche">${ficheHead("EMPLOI DU TEMPS CLASSE")}
-  <div class="kv"><div><span>Classe :</span> <b>${esc(c.nom)}</b></div><div><span>Effectif :</span> ${c.effectif||"—"}</div><div><span>Professeur principal :</span> ${esc(pp?.nom||"—")}</div><div><span>Volume :</span> ${fmtH(classHours(c))}/semaine</div>${c.salle?`<div><span>Salle :</span> ${esc(salleNom(c.salle))}</div>`:""}</div>
+  <div class="ppband"><span class="avatar tile ${pp?tone(pp.nom):"orange"}" style="border-radius:50%">${pp?esc(initialsOf(pp.nom)):"?"}</span><div class="grow"><span>Professeur principal</span><b>${pp?(pp.sexe==="F"?"Mme ":"M. ")+esc(pp.nom):"Non désigné"}</b></div>${pp?"":`<button class="btn" data-act="editClass" data-v="${c.id}">Désigner</button>`}</div>
+  <div class="kv"><div><span>Classe :</span> <b>${esc(c.nom)}</b></div><div><span>Effectif :</span> ${c.effectif||"—"}</div><div><span>Volume :</span> ${fmtH(classHours(c))}/semaine</div>${c.salle?`<div><span>Salle :</span> ${esc(salleNom(c.salle))}</div>`:""}</div>
   <p class="small muted" style="margin:0">Touchez un cours : les cases en pointillé vert montrent où il peut aller sans conflit. Touchez-en une pour déplacer ou échanger. Une case vide permet d'ajouter un cours.</p>
   ${gridHTML("classe",c.id)}${S.classes.some(c=>Object.values(S.sched[c.id]||{}).some(v=>v.w))?`<div class="small muted"><b class="wkk">A</b> <b class="wkk">B</b> = semaine A / semaine B : ces cours ont lieu une semaine sur deux (volumes de 1h30).</div>`:""}
   <div class="scroll"><table class="rec"><thead><tr><th>Discipline</th><th>Professeur</th><th>Prévu</th><th>Placé</th></tr></thead><tbody>
@@ -842,6 +847,7 @@ function profRecap(p){
 function ficheProf(p){
   const {rows,total,sup,ppOf}=profRecap(p);
   return `<section class="card fiche">${ficheHead("EMPLOI DU TEMPS PROFESSEUR")}
+  ${ppOf?`<div class="ppband"><span class="avatar tile green" style="border-radius:50%">${svg("users")}</span><div class="grow"><span>Professeur principal de la classe de</span><b>${esc(ppOf)}</b></div></div>`:""}
   <div class="kv"><div><span>Nom et prénoms :</span> <b>${esc(p.nom)}</b></div><div><span>Sexe :</span> ${p.sexe}</div>
   <div><span>Discipline :</span> ${p.mats.map(m=>mat(m)?.code).join(", ")}</div><div><span>Statut :</span> ${p.statut}</div>
   <div><span>Diplôme :</span> ${esc(p.diplome||"—")}</div><div><span>Tél :</span> ${esc(p.tel||"—")}</div>
@@ -1068,15 +1074,19 @@ function pdfPage(doc,kind,id,first){
   doc.setFont("helvetica","bold");doc.setFontSize(7);doc.text(pdfTxt((e.nom||"").toUpperCase()),W-M,17,{align:"right",maxWidth:72});
   doc.setFont("helvetica","normal");doc.setFontSize(5.8);doc.text(pdfTxt("Année scolaire "+(e.annee||"")+(e.email?"  ·  "+e.email:"")),W-M,20.4,{align:"right"});
   doc.setDrawColor(...ACC);doc.setLineWidth(.5);doc.line(M,23.5,W-M,23.5);
-  let title,info;
+  let title,info,ppLbl="",ppVal="";
   if(kind==="classe"){const c=cls(id);const pp=prof(c.pp);
     title="EMPLOI DU TEMPS  —  CLASSE DE "+c.nom;
-    info=["Effectif : "+(c.effectif||"-"),"Professeur principal : "+(pp?.nom||"-"),c.salle?"Salle : "+salleNom(c.salle):"",fmtH(classHours(c))+" / semaine"].filter(Boolean).join("     ");
-  }else{const p=prof(id);
+    info=["Effectif : "+(c.effectif||"-"),c.salle?"Salle : "+salleNom(c.salle):"",fmtH(classHours(c))+" / semaine"].filter(Boolean).join("     ");
+    ppLbl="PROFESSEUR PRINCIPAL";ppVal=pp?(pp.sexe==="F"?"Mme ":"M. ")+pp.nom:"Non désigné";
+  }else{const p=prof(id);const ppOf=S.classes.filter(c=>c.pp===p.id).map(c=>c.nom).join(", ");
+    if(ppOf){ppLbl="PROFESSEUR PRINCIPAL DE";ppVal=ppOf}
     title="EMPLOI DU TEMPS  —  "+(p.sexe==="F"?"MME ":"M. ")+p.nom.toUpperCase();
     info=["Discipline : "+p.mats.map(m=>mat(m)?.code).join(", "),"Statut : "+p.statut,"Diplôme : "+(p.diplome||"-"),p.matricule?"Matricule : "+p.matricule:"",p.tel?"Tél : "+p.tel:""].filter(Boolean).join("     ");}
   doc.setFont("helvetica","bold");doc.setFontSize(10.5);doc.setTextColor(...ACC);doc.text(pdfTxt(title),W/2,29.5,{align:"center"});
   doc.setTextColor(20);doc.setFont("helvetica","normal");doc.setFontSize(6.8);doc.text(pdfTxt(info),W/2,33.8,{align:"center",maxWidth:W-2*M});
+  if(ppVal){doc.setFillColor(226,243,234);doc.roundedRect(M,25.6,52,8.6,2,2,"F");doc.setTextColor(...ACC);doc.setFont("helvetica","bold");doc.setFontSize(5.2);doc.text(ppLbl,M+2.5,28.6);
+    doc.setTextColor(20);doc.setFontSize(7.4);doc.text(pdfTxt(ppVal),M+2.5,32.4,{maxWidth:48})}
   const N=nS();const body=[];let lookup,anyHalf=false;
   if(kind==="classe"){lookup=k=>{const it=itemsAt(id,k);if(!it.length)return null;
     if(it.length===1&&!it[0].w){const v=it[0],m=mat(v.m);return {t:(m?.code||"")+(v.r?" · "+salleNom(v.r):"")+"\n"+shortName(prof(v.p)?.nom||""),h:m?.h}}
@@ -1098,7 +1108,7 @@ function pdfPage(doc,kind,id,first){
   let sum;
   if(kind==="prof"){const p=prof(id);const {rows,total,sup,ppOf}=profRecap(p);
     sum="Récapitulatif :  "+rows.map(r=>Object.values(r.cl).map(c=>c.nom).join("/")+" ("+(mat(r.m)?.code||"")+") "+fmtH(r.h).replace(" ","")).join("  ·  ")+
-      "     |     Total : "+fmtH(total)+"     Heures sup. : "+fmtH(sup)+(ppOf?"     Professeur principal : "+ppOf:"");
+      "     |     Total : "+fmtH(total)+"     Heures sup. : "+fmtH(sup)+(ppOf?"     Professeur principal de : "+ppOf:"");
   }else{const c=cls(id);sum="Disciplines :  "+needOf(c).map(x=>(mat(x.m)?.code||x.m)+" "+fmtH(x.h).replace(" ","")+" ("+(shortName(prof((S.aff[c.id]||{})[x.m])?.nom)||"-")+")").join("  ·  ")}
   if(anyHalf) sum+="     |     Sem. A / Sem. B : cours une semaine sur deux (1h30).";
   doc.setFont("helvetica","normal");const sl=doc.splitTextToSize(pdfTxt(sum),W-2*M).slice(0,3);doc.text(sl,M,y);
