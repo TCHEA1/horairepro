@@ -26,6 +26,15 @@ L'application s'adapte toute seule : version mobile sur téléphone, version ord
 2. Menu ⋮ → **Installer l'application** (ou « Ajouter à l'écran d'accueil »).
 3. Sur iPhone : bouton Partager → **Sur l'écran d'accueil**.
 
+## Licences (abonnement annuel)
+
+- Chaque établissement a **30 jours d'essai gratuit**, toutes fonctions ouvertes.
+- Ensuite, la génération et les PDF demandent un **code d'activation** (Réglages → Licence).
+- Les codes sont créés dans l'espace vendeur `admin.html`, protégé par un code PIN. Ils sont **signés** : impossible d'en fabriquer un faux sans la clé privée du vendeur.
+- Le nom de l'établissement est inscrit dans le code et imprimé sur tous ses emplois du temps.
+
+La clé privée (`cle-admin-horairepro.json`) ne doit **jamais** être mise sur GitHub.
+
 ## Hébergement
 
 Site statique, hébergé gratuitement avec GitHub Pages (branche `main`, dossier racine). Aucun serveur n'est nécessaire.
@@ -37,6 +46,7 @@ Site statique, hébergé gratuitement avec GitHub Pages (branche `main`, dossier
 | `index.html` | L'application complète |
 | `manifest.webmanifest` | Nom, icônes et couleurs pour l'installation |
 | `sw.js` | Fonctionnement hors connexion |
+| `admin.html` | Espace vendeur : clients et licences |
 | `vendor/` | Bibliothèques PDF (jsPDF, jsPDF-AutoTable) |
 | `icons/` | Icônes de l'application |
 
