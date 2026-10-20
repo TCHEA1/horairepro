@@ -12,7 +12,9 @@ HorairePro est une application mobile installable, pensée pour les collèges et
 - **Classes** (effectif, salle, professeur principal) et **professeurs** (matières, statut, diplôme, matricule, heures dues, maximum, indisponibilités).
 - **Affectation automatique** des classes aux professeurs.
 - **Génération automatique** : aucun professeur dans deux classes à la fois, séances de 2 h, une matière une fois par jour, matières principales le matin.
-- **Retouche à la main** : échanger ou déplacer un cours d'un simple toucher.
+- **Retouche à la main** : touchez un cours, les cases possibles s'allument en vert, touchez-en une pour déplacer ou échanger.
+- **Changement en cours d'année** : un professeur change ses jours ou heures ? HorairePro déplace seulement ses cours vers des heures libres (classe, professeur et salle), avec historique et retour en arrière.
+- **Salles** : salle de chaque classe, salles spéciales par matière (labo, salle informatique, terrain), jamais deux classes dans la même salle à la même heure. Vue par salle, et salle indiquée sur l'emploi du temps des professeurs.
 - **Fiches imprimables** au format officiel (en-tête Ministère / République, tableau récapitulatif, heures supplémentaires) et **export PDF** de toutes les classes ou tous les professeurs.
 - **Hors connexion** après la première ouverture. Données stockées sur l'appareil, avec sauvegarde / restauration en fichier.
 

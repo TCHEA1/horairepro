@@ -152,7 +152,10 @@ table.edt td.c{height:50px;border-radius:11px;background:var(--sunk);text-align:
 table.edt td.c.f{background:hsl(var(--h) var(--cs) var(--cl));color:var(--cell-ink)}
 table.edt td.c.off{background:repeating-linear-gradient(135deg,var(--off) 0 6px,transparent 6px 12px);cursor:default}
 table.edt td.c.sel{border-color:var(--warm);box-shadow:0 0 0 3px var(--warm-soft)}
-table.edt td.c.drop{border-style:dashed;border-color:var(--accent)}
+table.edt td.c.drop{border-style:dashed;border-color:var(--accent);background-color:color-mix(in srgb,var(--accent-soft) 60%,var(--sunk))}
+table.edt td.c.f.drop{background:hsl(var(--h) var(--cs) var(--cl))}
+table.edt td.c.no{opacity:.32}
+table.edt td.c .rm{display:inline-block;margin-top:2px;font-size:9.5px;font-weight:700;padding:1px 6px;border-radius:6px;background:rgb(255 255 255 / .55);color:var(--cell-ink);opacity:1;max-width:100%}
 table.edt td.c b{display:block;font-size:12.5px;font-weight:800;line-height:1.15}
 table.edt td.c span{display:block;font-size:10px;opacity:.8;line-height:1.15;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 table.edt td.brk{font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);text-align:center;padding:3px;background:none}
@@ -199,6 +202,7 @@ table.vol tfoot td{font-weight:700;font-family:var(--f-mono);text-align:center}
 .mini div{text-align:center;color:var(--muted);font-weight:600;padding:2px}
 .mini button{height:30px;border-radius:8px;border:1px solid var(--line);background:var(--sunk);cursor:pointer;font-size:10px;font-weight:700;color:var(--muted)}
 .mini button.on{background:var(--danger-soft);border-color:var(--danger);color:var(--danger)}
+.mini button.has{background:var(--accent-soft);color:var(--accent);border-color:transparent;font-size:9px}
 .mini button.x{background:var(--off);border-style:dashed;cursor:default}
 .mini .hh{font-family:var(--f-mono);font-size:9.5px;font-weight:500;text-align:right;padding-top:8px}
 .sw{display:flex;flex-wrap:wrap;gap:8px}
@@ -338,7 +342,7 @@ function defaultState(){
   const cr=[["07H15","08H10",1],["08H10","09H05",1],["09H05","10H00",1],["10H15","11H10",2],["11H10","12H05",2],
             ["14H00","15H00",3],["15H00","16H00",3],["16H00","17H00",3],["17H00","18H00",3]].map(([debut,fin,g])=>({debut,fin,g}));
   const off={}; for(let s=5;s<9;s++) off["2-"+s]=true; // mercredi après-midi libre
-  return {v:1,at:0,exemple:false,install:"",licence:"",
+  return {v:1,at:0,exemple:false,install:"",licence:"",salles:[],history:[],
     etab:defaultEtab(),
     creneaux:cr,off,matieres:mats,grille,classes:[],profs:[],aff:{},sched:{},
     gen:{bloc2:true,report:null}};
@@ -351,7 +355,10 @@ function sampleState(){
     adresse:"Quartier Exemple, rue des Écoles",ville:"Exemple-Ville",bp:"BP 00 Exemple-Ville",tel:"07 00 00 00 00",tel2:"05 00 00 00 00",email:"contact@exemple-batisseurs.ci",
     chefNom:"M. KOFFI Exemple",etudesNom:"Mme YAO Exemple",devise:"Bâtir l'avenir par le savoir",applic:"05/10/2026",logo:LOGO_EX};
   const cl=[["6è1","6e",62],["6è2","6e",60],["5è1","5e",58],["5è2","5e",57],["4è1","4e",55],["4è2","4e",54],["3è1","3e",61],["3è2","3e",59],["2nde C","2ndeC",48],["1ère D","1reD",45],["Tle D","TleD",42]];
-  S.classes=cl.map(([nom,niveau,effectif])=>({id:uid(),nom,niveau,effectif,pp:null}));
+  S.salles=cl.map((_,i)=>({id:uid(),nom:"Salle "+(i+1),type:"Classe",multi:false}));
+  S.salles.push({id:uid(),nom:"Terrain de sport",type:"Terrain / Plateau EPS",multi:true},{id:uid(),nom:"Labo Sciences",type:"Laboratoire",multi:false},{id:uid(),nom:"Salle informatique",type:"Salle informatique",multi:false});
+  S.classes=cl.map(([nom,niveau,effectif],i)=>({id:uid(),nom,niveau,effectif,pp:null,salle:S.salles[i].id}));
+  S.matieres.find(m=>m.id==="EPS").salle=S.salles[cl.length].id;
   const pr=[["KONAN Aya Rose","F",["FR"]],["N'GUESSAN Brou Désiré","M",["FR"]],["YAO Affoué Clarisse","F",["FR"]],
     ["KOUASSI Yao Firmin","M",["MATH"]],["DIABATÉ Moussa","M",["MATH"]],["KOFFI Amenan Esther","F",["MATH"]],
     ["TRAORÉ Mariam","F",["ANG"]],["GNAGNE Serge","M",["ANG"]],["BAMBA Awa","F",["LV2"]],
@@ -373,7 +380,11 @@ function migrate(x){const d=defaultState();for(const k in d) if(x[k]===undefined
   if(x.etab.directeur&&!x.etab.etudesTitre) x.etab.etudesTitre=x.etab.directeur;delete x.etab.directeur;
   x.etab={...defaultEtab(),...x.etab};
   x.profs.forEach(p=>{p.matricule=p.matricule||"";p.origine=p.origine||"";p.indispo=p.indispo||{}});
-  x.classes.forEach(c=>{c.salle=c.salle||""});return x}
+  x.salles=x.salles||[];x.history=x.history||[];
+  x.classes.forEach(c=>{c.salle=c.salle||"";if(c.salle&&!x.salles.find(r=>r.id===c.salle)){let r=x.salles.find(r=>r.nom===c.salle);if(!r){r={id:uid(),nom:c.salle,type:"Classe",multi:false};x.salles.push(r)}c.salle=r.id}});
+  x.matieres.forEach(m=>{m.salle=m.salle||""});
+  for(const cid in x.sched)for(const k in x.sched[cid]){const v=x.sched[cid][k];if(v.r===undefined){const c=x.classes.find(c=>c.id===cid),m=x.matieres.find(m=>m.id===v.m);v.r=(m&&m.salle)||(c&&c.salle)||""}}
+  return x}
 
 
 /* ===================== Licence (abonnement annuel) ===================== */
@@ -437,12 +448,16 @@ const grp=s=>S.creneaux[s]?.g;
 const mat=id=>S.matieres.find(m=>m.id===id);
 const prof=id=>S.profs.find(p=>p.id===id);
 const cls=id=>S.classes.find(c=>c.id===id);
+const salle=id=>id?S.salles.find(r=>r.id===id):null;
+const salleNom=id=>salle(id)?.nom||"";
+function roomFor(cid,mid){const m=mat(mid),c=cls(cid);return (m&&m.salle&&salle(m.salle)?m.salle:"")||(c&&c.salle&&salle(c.salle)?c.salle:"")||""}
+function roomBusy(rid,k,exceptCid){const r=salle(rid);if(!r||r.multi)return null;for(const c of S.classes){if(c.id===exceptCid)continue;const v=(S.sched[c.id]||{})[k];if(v&&v.r===rid)return c}return null}
 const hcode=h=>"--h:"+h;
 const shortName=n=>{if(!n)return"";const p=n.split(" ");return p[0]+(p[1]?" "+p[1][0]+".":"")};
 function needOf(c){const g=S.grille[c.niveau]||{};return S.matieres.map(m=>({m:m.id,h:+g[m.id]||0})).filter(x=>x.h>0)}
 function classHours(c){return needOf(c).reduce((a,x)=>a+x.h,0)}
 function profLoadAff(pid){let t=0;for(const c of S.classes){const a=S.aff[c.id]||{};for(const x of needOf(c)) if(a[x.m]===pid) t+=x.h}return t}
-function profCells(pid){const out=[];for(const c of S.classes){const sc=S.sched[c.id]||{};for(const k in sc) if(sc[k].p===pid) out.push({k,c:c.id,m:sc[k].m})}return out}
+function profCells(pid){const out=[];for(const c of S.classes){const sc=S.sched[c.id]||{};for(const k in sc) if(sc[k].p===pid) out.push({k,c:c.id,m:sc[k].m,r:sc[k].r||""})}return out}
 function placedCount(cid,mid){const sc=S.sched[cid]||{};let n=0;for(const k in sc) if(sc[k].m===mid) n++;return n}
 function totalNeeded(){return S.classes.reduce((a,c)=>a+classHours(c),0)}
 function totalPlaced(){let n=0;for(const c of S.classes) n+=Object.keys(S.sched[c.id]||{}).length;return n}
@@ -481,7 +496,7 @@ function buildLessons(){
   for(const c of S.classes){const a=S.aff[c.id]||{};
     for(const x of needOf(c)){const m=mat(x.m);const p=a[x.m]&&prof(a[x.m])?a[x.m]:null;const ch=[];
       if(S.gen.bloc2&&m.bloc&&x.h>=2){let r=x.h;while(r>=2){ch.push(2);r-=2}if(r)ch.push(1)}else for(let i=0;i<x.h;i++)ch.push(1);
-      ch.forEach(d=>L.push({c:c.id,m:x.m,p,d,n:ch.length}));}}
+      const r=roomFor(c.id,x.m);ch.forEach(d=>L.push({c:c.id,m:x.m,p,d,n:ch.length,r}));}}
   return L;
 }
 function generate(){
@@ -492,7 +507,7 @@ function generate(){
   L.forEach(l=>{if(l.p)pHours[l.p]+=l.d});
   let best=null,att=0;
   while(att<400){att++;
-    const C={},P={},CD={},PD={},MD={};const res={};const un=[];let score=0;
+    const C={},P={},RM={},CD={},MD={},PD={};const res={};const un=[];let score=0;
     const tight=l=>l.p?pHours[l.p]/pAvail[l.p]:0;
     const ord=L.map(l=>({l,k:(l.d===2?-50:0)-tight(l)*20-(l.n>=4?5:0)+Math.random()*6})).sort((a,b)=>a.k-b.k).map(o=>o.l);
     const tryPlace=(l,dur,forbidDay)=>{
@@ -503,7 +518,8 @@ function generate(){
         for(let s=0;s+dur<=N;s++){let ok=true;
           for(let k=0;k<dur;k++){const ss=s+k;const key=d+"-"+ss;
             if(isOff(d,ss)||grp(ss)!==grp(s)||C[l.c+"@"+key]){ok=false;break}
-            if(l.p&&(P[l.p+"@"+key]||prof(l.p).indispo[key])){ok=false;break}}
+            if(l.p&&(P[l.p+"@"+key]||prof(l.p).indispo[key])){ok=false;break}
+            if(l.r&&!salle(l.r)?.multi&&RM[l.r+"@"+key]){ok=false;break}}
           if(!ok) continue;
           let sc=Math.random()*2;
           sc+=(CD[l.c+"|"+d]||0)*1.4;
@@ -517,8 +533,8 @@ function generate(){
         }}
       if(!bestPos) return null;
       const {d,s}=bestPos;
-      for(let k=0;k<dur;k++){const key=d+"-"+(s+k);C[l.c+"@"+key]=1;if(l.p)P[l.p+"@"+key]=1;
-        (res[l.c]=res[l.c]||{})[key]={m:l.m,p:l.p}}
+      for(let k=0;k<dur;k++){const key=d+"-"+(s+k);C[l.c+"@"+key]=1;if(l.p)P[l.p+"@"+key]=1;if(l.r)RM[l.r+"@"+key]=1;
+        (res[l.c]=res[l.c]||{})[key]={m:l.m,p:l.p,r:l.r||""}}
       CD[l.c+"|"+d]=(CD[l.c+"|"+d]||0)+dur;if(l.p)PD[l.p+"|"+d]=(PD[l.p+"|"+d]||0)+dur;
       MD[l.c+"|"+l.m+"|"+d]=(MD[l.c+"|"+l.m+"|"+d]||0)+1;score+=bs;return d;
     };
@@ -534,6 +550,7 @@ function generate(){
     const el=performance.now()-t0;
     if((best.miss===0&&att>=6)||el>2600) break;
   }
+  snapshot("Nouvelle génération complète");
   S.sched=best.res;
   S.gen.report={at:Date.now(),miss:best.miss,un:best.un.map(l=>({c:l.c,m:l.m,p:l.p,d:l.d})),att,total:L.reduce((a,l)=>a+l.d,0)};
   save();return S.gen.report;
@@ -625,9 +642,9 @@ function vHome(){
 
 /* ---------- Saisie ---------- */
 function vData(){
-  const subs=[["classes","Classes"],["profs","Professeurs"],["mats","Matières"],["aff","Affectations"]];
+  const subs=[["classes","Classes"],["profs","Professeurs"],["mats","Matières"],["salles","Salles"],["aff","Affectations"]];
   return `<div class="seg" role="group">${subs.map(([k,l])=>`<button data-act="sub" data-v="${k}" aria-pressed="${UI.sub===k}">${l}</button>`).join("")}</div>
-  ${({classes:vClasses,profs:vProfs,mats:vMats,aff:vAff})[UI.sub]()}`;
+  ${({classes:vClasses,profs:vProfs,mats:vMats,salles:vSalles,aff:vAff})[UI.sub]()}`;
 }
 function vClasses(){
   const sorted=[...S.classes].sort((a,b)=>NIV.findIndex(n=>n.id===a.niveau)-NIV.findIndex(n=>n.id===b.niveau)||a.nom.localeCompare(b.nom,"fr",{numeric:true}));
@@ -644,6 +661,22 @@ function vProfs(){
       <span style="text-align:right;display:flex;flex-direction:column;align-items:flex-end;gap:4px"><span class="small" style="font-variant-numeric:tabular-nums">${l} / ${p.max} h</span><span class="bar"><i class="${l>p.max?"over":""}" style="width:${pct}%"></i></span></span></button>`}).join("")}</div>`
   :`<div class="empty">Aucun professeur pour l'instant.<button class="btn primary" data-act="editProf">Ajouter un professeur</button></div>`}</section>`;
 }
+const STYPES=["Classe","Laboratoire","Salle informatique","Terrain / Plateau EPS","Salle polyvalente","Autre"];
+function vSalles(){
+  const use={};for(const c of S.classes)for(const v of Object.values(S.sched[c.id]||{})) if(v.r) use[v.r]=(use[v.r]||0)+1;
+  const tileOf=t=>t==="Laboratoire"?"violet":t==="Salle informatique"?"blue":t.startsWith("Terrain")?"green":t==="Classe"?"teal":"orange";
+  return `<section class="card"><div class="sec-title"><h3>${S.salles.length} salles</h3><div class="row"><button class="btn" data-act="autoSalles">+ Une par classe</button><button class="btn primary" data-act="editSalle">+ Salle</button></div></div>
+  ${S.salles.length?`<div class="list">${S.salles.map(r=>{const who=[...S.classes.filter(c=>c.salle===r.id).map(c=>c.nom),...S.matieres.filter(m=>m.salle===r.id).map(m=>m.code)];
+    return `<button class="item" data-act="editSalle" data-v="${r.id}"><span class="tile ${tileOf(r.type)}">${svg("school")}</span><span class="grow"><b>${esc(r.nom)}</b><span>${esc(r.type)}${who.length?" · "+esc(who.join(", ")):""}${r.multi?" · plusieurs classes à la fois":""}</span></span><span class="chip">${use[r.id]||0} h</span></button>`}).join("")}</div>`
+  :`<div class="empty">Aucune salle. Ajoutez vos salles de classe, laboratoires, salle informatique, terrain de sport…<button class="btn primary" data-act="autoSalles">Créer une salle par classe</button></div>`}</section>
+  <div class="tip"><span class="tile green" style="width:36px;height:36px">${svg("bulb")}</span><div><b>Comment sont choisies les salles ?</b>Chaque classe a sa salle. Une matière peut avoir une salle spéciale (ex : PC au Labo, EPS au terrain). Deux classes ne sont jamais dans la même salle en même temps, sauf si la salle accepte plusieurs classes.</div></div>`}
+function sheetSalle(id){const r=id?salle(id):{nom:"",type:"Classe",multi:false};
+  openSheet(`<h3>${id?"Modifier la salle":"Nouvelle salle"}</h3>
+  <div class="grid2"><label class="f">Nom<input id="fs-nom" value="${esc(r.nom)}" placeholder="ex : Salle 12, Labo 1, Bât. B"></label>
+  <label class="f">Type<select id="fs-type">${STYPES.map(t=>`<option ${r.type===t?"selected":""}>${t}</option>`).join("")}</select></label></div>
+  <label class="check"><input type="checkbox" id="fs-multi" ${r.multi?"checked":""}><span>Peut accueillir plusieurs classes en même temps (terrain de sport, cour…)</span></label>
+  <div class="row">${id?`<button class="btn danger" data-act="delSalle" data-v="${id}">Supprimer</button>`:""}<button class="btn grow" data-act="close">Annuler</button><button class="btn primary grow" data-act="saveSalle" data-v="${id||""}">Enregistrer</button></div>`)}
+function salleSelect(idName,cur,empty){return `<select id="${idName}"><option value="">${empty}</option>${S.salles.map(r=>`<option value="${r.id}" ${cur===r.id?"selected":""}>${esc(r.nom)}</option>`).join("")}</select>`}
 function vMats(){
   const nivs=NIV.filter(n=>S.classes.some(c=>c.niveau===n.id));
   const showN=nivs.length?nivs:NIV.slice(0,4);
@@ -679,6 +712,9 @@ function vGen(){
   <div class="small muted">Règles appliquées : une même matière une seule fois par jour dans une classe, matières principales le matin, peu de trous, journées équilibrées.</div>
   ${ua?`<div class="banner"><span style="flex:1;min-width:200px"><b>${ua} cours sans professeur.</b> Ils seront placés quand même, sans nom de professeur.</span><button class="btn" data-act="autoAff">Affecter automatiquement</button></div>`:""}
   <button class="btn primary big block" data-act="runGen">Générer tous les emplois du temps</button></section>
+  <section class="card"><div class="row"><span class="tile orange">${svg("users")}</span><div class="grow"><h3>Un professeur change ses jours ou ses heures ?</h3><span class="small muted">En cours d'année, sans tout refaire : seuls ses cours sont déplacés, vers des heures où la classe, le professeur et la salle sont libres.</span></div></div>
+  <button class="btn primary block" data-act="openChange">Gérer un changement d'horaire</button></section>
+  ${(S.history||[]).length?`<section class="card"><h3>Historique des modifications</h3><div class="list">${S.history.map(h=>`<div class="item" style="cursor:default"><span class="tile teal">${svg("edt")}</span><span class="grow"><b>${esc(h.label)}</b><span>${new Date(h.at).toLocaleString("fr-FR",{dateStyle:"short",timeStyle:"short"})}${h.after?" · "+esc(h.after):""}</span></span><button class="btn" data-act="restore" data-v="${h.id}">Restaurer</button></div>`).join("")}</div><span class="small muted">« Restaurer » remet les emplois du temps tels qu'ils étaient avant cette modification.</span></section>`:""}
   ${r?`<section class="card"><div class="sec-title"><h3>Dernier résultat</h3><span class="chip ${r.miss?"warn":"ok"}">${r.miss?r.miss+" h à placer à la main":"100 % placé"}</span></div>
   <div class="small muted">${new Date(r.at).toLocaleString("fr-FR")} · ${r.total-r.miss} h placées sur ${r.total} · ${r.att} essais</div>
   ${r.un.length?`<p class="small" style="margin:0">Ces cours n'ont pas trouvé de place libre. Allez dans <b>Emplois</b>, touchez une case vide de la classe pour les ajouter, ou réduisez les indisponibilités du professeur.</p>
@@ -687,15 +723,16 @@ function vGen(){
 
 /* ---------- Emplois ---------- */
 function vEdt(){
-  const mode=UI.edtMode;const arr=mode==="classe"?S.classes:S.profs;
-  if(!arr.length) return `<section class="card"><div class="empty">Rien à afficher. Ajoutez des ${mode==="classe"?"classes":"professeurs"} puis lancez la génération.</div></section>`;
+  const mode=UI.edtMode;const arr=mode==="classe"?S.classes:mode==="prof"?S.profs:S.salles;
+  const segs=`<div class="seg"><button data-act="edtMode" data-v="classe" aria-pressed="${mode==="classe"}">Par classe</button><button data-act="edtMode" data-v="prof" aria-pressed="${mode==="prof"}">Par professeur</button><button data-act="edtMode" data-v="salle" aria-pressed="${mode==="salle"}">Par salle</button></div>`;
+  if(!arr.length) return `${segs}<section class="card"><div class="empty">Rien à afficher. Ajoutez des ${mode==="classe"?"classes":mode==="prof"?"professeurs":"salles (Saisie → Salles)"} puis lancez la génération.</div></section>`;
   if(!arr.find(x=>x.id===UI.edtId)) UI.edtId=arr[0].id;
   const id=UI.edtId;
-  return `<div class="seg"><button data-act="edtMode" data-v="classe" aria-pressed="${mode==="classe"}">Par classe</button><button data-act="edtMode" data-v="prof" aria-pressed="${mode==="prof"}">Par professeur</button></div>
+  return `${segs}
   <div class="pick-chips">${arr.map(x=>`<button data-act="goPick" data-v="${x.id}" aria-pressed="${x.id===id}">${esc(x.nom)}</button>`).join("")}</div>
   <div class="row"><select class="in grow edt-pick" style="flex:1" id="edt-pick" data-act="edtPick">${arr.map(x=>`<option value="${x.id}" ${x.id===id?"selected":""}>${esc(x.nom)}</option>`).join("")}</select>
   <button class="btn" data-act="pdfOne">PDF</button><button class="btn primary" data-act="pdfAll">Tout en PDF</button></div>
-  ${mode==="classe"?ficheClasse(cls(id)):ficheProf(prof(id))}`;
+  ${mode==="classe"?ficheClasse(cls(id)):mode==="prof"?ficheProf(prof(id)):ficheSalle(salle(id))}`;
 }
 function telLine(e){return [e.tel,e.tel2].filter(Boolean).join(" / ")}
 function addrLine(e){return [e.adresse,e.bp,e.ville].filter(Boolean).join(" · ")}
@@ -719,12 +756,15 @@ function gridHTML(kind,id){
     const cr=S.creneaux[s];h+=`<tr><td class="h">${cr.debut}<br>${cr.fin}</td>`;
     for(let d=0;d<5;d++){const k=d+"-"+s;
       if(isOff(d,s)){h+=`<td class="c off" title="Pas de cours"></td>`;continue}
-      if(kind==="classe"){const v=(S.sched[id]||{})[k];
-        const sel=UI.sel&&UI.sel.k===k;const drop=UI.sel&&!sel;
-        if(v){const m=mat(v.m);const p=prof(v.p);h+=`<td class="c f ${sel?"sel":""} ${drop?"drop":""}" style="${hcode(m?.h||0)}" data-act="cell" data-k="${k}"><b>${esc(m?.code||"?")}</b><span>${esc(shortName(p?.nom))}</span></td>`}
-        else h+=`<td class="c ${drop?"drop":""}" data-act="cell" data-k="${k}" aria-label="Case libre"></td>`;
+      if(kind==="classe"){const v=(S.sched[id]||{})[k];const home=cls(id)?.salle;
+        const sel=UI.sel&&UI.sel.k===k;let st="";if(UI.sel&&!sel){const r=moveCheck(id,UI.sel.k,k);st=r===true?"drop":"no"}
+        if(v){const m=mat(v.m);const p=prof(v.p);h+=`<td class="c f ${sel?"sel":""} ${st}" style="${hcode(m?.h||0)}" data-act="cell" data-k="${k}"><b>${esc(m?.code||"?")}</b><span>${esc(shortName(p?.nom))}</span>${v.r&&v.r!==home?`<span class="rm">${esc(salleNom(v.r))}</span>`:""}</td>`}
+        else h+=`<td class="c ${st}" data-act="cell" data-k="${k}" aria-label="Case libre"></td>`;
+      }else if(kind==="salle"){const occ=S.classes.map(c=>({c,v:(S.sched[c.id]||{})[k]})).filter(x=>x.v&&x.v.r===id);
+        if(occ.length){const m=mat(occ[0].v.m);h+=`<td class="c f" style="${hcode(m?.h||0)}" data-act="goClass" data-v="${occ[0].c.id}"><b>${esc(occ.map(x=>x.c.nom).join(" + "))}</b><span>${esc(m?.code)} · ${esc(shortName(prof(occ[0].v.p)?.nom))}</span></td>`}
+        else h+=`<td class="c" style="cursor:default"></td>`;
       }else{const v=pc[k];
-        if(v){const m=mat(v.m),c=cls(v.c);h+=`<td class="c f" style="${hcode(m?.h||0)}" data-act="goClass" data-v="${v.c}"><b>${esc(c?.nom)}</b><span>${esc(m?.code)}</span></td>`}
+        if(v){const m=mat(v.m),c=cls(v.c);h+=`<td class="c f" style="${hcode(m?.h||0)}" data-act="goClass" data-v="${v.c}"><b>${esc(c?.nom)}</b><span>${esc(m?.code)}</span>${v.r?`<span class="rm">${esc(salleNom(v.r))}</span>`:""}</td>`}
         else h+=`<td class="c" style="cursor:default"></td>`;}
     }h+=`</tr>`}
   return h+`</tbody></table></div>`;
@@ -732,14 +772,18 @@ function gridHTML(kind,id){
 function ficheClasse(c){
   const pp=prof(c.pp);const need=needOf(c);
   return `<section class="card fiche">${ficheHead("EMPLOI DU TEMPS CLASSE")}
-  <div class="kv"><div><span>Classe :</span> <b>${esc(c.nom)}</b></div><div><span>Effectif :</span> ${c.effectif||"—"}</div><div><span>Professeur principal :</span> ${esc(pp?.nom||"—")}</div><div><span>Volume :</span> ${classHours(c)} h/semaine</div>${c.salle?`<div><span>Salle :</span> ${esc(c.salle)}</div>`:""}</div>
-  <p class="small muted" style="margin:0">Touchez un cours, puis une autre case pour l'échanger ou le déplacer. Touchez une case vide pour ajouter un cours.</p>
+  <div class="kv"><div><span>Classe :</span> <b>${esc(c.nom)}</b></div><div><span>Effectif :</span> ${c.effectif||"—"}</div><div><span>Professeur principal :</span> ${esc(pp?.nom||"—")}</div><div><span>Volume :</span> ${classHours(c)} h/semaine</div>${c.salle?`<div><span>Salle :</span> ${esc(salleNom(c.salle))}</div>`:""}</div>
+  <p class="small muted" style="margin:0">Touchez un cours : les cases en pointillé vert montrent où il peut aller sans conflit. Touchez-en une pour déplacer ou échanger. Une case vide permet d'ajouter un cours.</p>
   ${gridHTML("classe",c.id)}
   <div class="scroll"><table class="rec"><thead><tr><th>Discipline</th><th>Professeur</th><th>Prévu</th><th>Placé</th></tr></thead><tbody>
   ${need.map(x=>{const m=mat(x.m);const p=prof((S.aff[c.id]||{})[x.m]);const pl=placedCount(c.id,x.m);return `<tr><td><span class="mat" style="${hcode(m.h)}">${esc(m.code)}</span> ${esc(m.nom)}</td><td>${esc(p?.nom||"—")}</td><td class="n">${x.h} h</td><td class="n">${pl===x.h?pl+" h":`<span class="chip ${pl<x.h?"warn":"bad"}">${pl} h</span>`}</td></tr>`}).join("")}
   </tbody></table></div>
   ${signLine()}</section>`;
 }
+function ficheSalle(r){let n=0;for(const c of S.classes)for(const v of Object.values(S.sched[c.id]||{})) if(v.r===r.id) n++;
+  return `<section class="card fiche">${ficheHead("OCCUPATION DE LA SALLE")}
+  <div class="kv"><div><span>Salle :</span> <b>${esc(r.nom)}</b></div><div><span>Type :</span> ${esc(r.type)}</div><div><span>Occupation :</span> ${n} h/semaine</div>${r.multi?`<div><span>Accueille plusieurs classes à la fois</span></div>`:""}</div>
+  ${gridHTML("salle",r.id)}${signLine()}</section>`}
 function profRecap(p){
   const cells=profCells(p.id);const g={};
   for(const x of cells){const c=cls(x.c);const key=x.m+"|"+c.niveau;(g[key]=g[key]||{m:x.m,n:c.niveau,cl:{},h:0}).h++;g[key].cl[c.id]=c}
@@ -819,7 +863,7 @@ function miniGrid(kind,map){const N=nS();let h=`<div class="mini"><div></div>${J
 
 /* ===================== Feuilles (formulaires) ===================== */
 let sheetCtx=null;
-function openSheet(html){closeSheet();const d=document.createElement("div");d.className="scrim";d.id="scrim";
+function openSheet(html){const keep=sheetCtx;closeSheet();sheetCtx=keep;const d=document.createElement("div");d.className="scrim";d.id="scrim";
   d.innerHTML=`<div class="sheet" role="dialog" aria-modal="true"><div class="grab"></div>${html}</div>`;
   d.addEventListener("click",e=>{if(e.target===d)closeSheet()});document.body.appendChild(d);
   setTimeout(()=>{const f=d.querySelector("input,select");if(f&&!("ontouchstart" in window))f.focus()},50)}
@@ -833,7 +877,7 @@ function sheetClass(id){const c=id?cls(id):{id:null,nom:"",niveau:"6e",effectif:
   <div class="grid2"><label class="f">Nom<input id="fc-nom" value="${esc(c.nom)}" placeholder="ex : 6è1"></label>
   <label class="f">Niveau<select id="fc-niv">${NIV.map(n=>`<option value="${n.id}" ${c.niveau===n.id?"selected":""}>${n.l}</option>`).join("")}</select></label>
   <label class="f">Effectif<input id="fc-eff" type="number" inputmode="numeric" value="${esc(c.effectif)}"></label>
-  <label class="f">Salle<input id="fc-salle" value="${esc(c.salle||"")}" placeholder="ex : Salle 12, Bât. B"></label>
+  <label class="f">Salle de la classe${salleSelect("fc-salle",c.salle||"","— Aucune —")}</label>
   <label class="f">Professeur principal<select id="fc-pp"><option value="">—</option>${S.profs.map(p=>`<option value="${p.id}" ${c.pp===p.id?"selected":""}>${esc(p.nom)}</option>`).join("")}</select></label></div>
   <div class="row">${id?`<button class="btn danger" data-act="delClass" data-v="${id}">Supprimer</button>`:""}<button class="btn grow" data-act="close">Annuler</button><button class="btn primary grow" data-act="saveClass" data-v="${id||""}">Enregistrer</button></div>`)}
 function sheetMany(){openSheet(`<h3>Ajouter plusieurs classes</h3>
@@ -868,24 +912,93 @@ function sheetMat(id){const m=id?mat(id):{code:"",nom:"",h:HUES[S.matieres.lengt
   <div class="sw" id="fx-sw">${HUES.map(h=>`<button type="button" style="--h:${h}" data-act="hue" data-v="${h}" aria-pressed="${m.h===h}" aria-label="Couleur"></button>`).join("")}</div>
   <label class="check"><input type="checkbox" id="fx-bloc" ${m.bloc?"checked":""}><span>Séances de 2 heures d'affilée</span></label>
   <label class="check"><input type="checkbox" id="fx-matin" ${m.matin?"checked":""}><span>Placer plutôt le matin</span></label>
+  <label class="f">Salle spéciale pour cette matière${salleSelect("fx-salle",m.salle||"","— Salle habituelle de la classe —")}</label>
   <div class="row">${id?`<button class="btn danger" data-act="delMat" data-v="${id}">Supprimer</button>`:""}<button class="btn grow" data-act="close">Annuler</button><button class="btn primary grow" data-act="saveMat" data-v="${id||""}">Enregistrer</button></div>`)}
 function sheetAddLesson(k){const c=cls(UI.edtId);const [d,s]=k.split("-").map(Number);
-  const opts=needOf(c).map(x=>{const pl=placedCount(c.id,x.m);const pid=(S.aff[c.id]||{})[x.m];const ok=canPut(c.id,k,pid);return {...x,pl,pid,ok}});
+  const opts=needOf(c).map(x=>{const pl=placedCount(c.id,x.m);const pid=(S.aff[c.id]||{})[x.m];const ok=canPut(c.id,k,pid,roomFor(c.id,x.m));return {...x,pl,pid,ok}});
   openSheet(`<h3>Ajouter un cours · ${esc(c.nom)}</h3><p class="muted small" style="margin:0">${JOURS[d]} · ${S.creneaux[s].debut} – ${S.creneaux[s].fin}</p>
   <div class="list">${opts.map(o=>{const m=mat(o.m);const p=prof(o.pid);return `<button class="item" data-act="addLesson" data-k="${k}" data-m="${o.m}" ${o.ok===true?"":"disabled style='opacity:.5;cursor:default'"}><span class="mat" style="${hcode(m.h)}">${esc(m.code)}</span><span class="grow"><b>${esc(m.nom)}</b><span>${esc(p?.nom||"Sans professeur")} ${o.ok!==true?"· "+o.ok:""}</span></span><span class="chip ${o.pl<o.h?"warn":"ok"}">${o.pl}/${o.h} h</span></button>`}).join("")}</div>
   <button class="btn" data-act="close">Fermer</button>`)}
 
 /* ===================== Édition manuelle ===================== */
-function canPut(cid,k,pid,ignore){const [d,s]=k.split("-").map(Number);if(isOff(d,s))return "créneau fermé";if(!pid)return true;
-  const p=prof(pid);if(p?.indispo[k])return "professeur indisponible";
-  for(const c of S.classes){if(c.id===cid)continue;const v=(S.sched[c.id]||{})[k];if(v&&v.p===pid)return "déjà en "+c.nom}return true}
+function canPut(cid,k,pid,rid){const [d,s]=k.split("-").map(Number);if(isOff(d,s))return "créneau fermé";
+  if(pid){const p=prof(pid);if(p?.indispo[k])return shortName(p.nom)+" indisponible";
+    for(const c of S.classes){if(c.id===cid)continue;const v=(S.sched[c.id]||{})[k];if(v&&v.p===pid)return shortName(p?.nom)+" déjà en "+c.nom}}
+  if(rid){const c=roomBusy(rid,k,cid);if(c)return salleNom(rid)+" occupée par "+c.nom}
+  return true}
+// Peut-on déplacer le cours de la case a vers k (échange si k est occupée) ?
+function moveCheck(cid,a,k){const sc=S.sched[cid]||{};const A=sc[a],B=sc[k];if(!A||a===k)return "same";
+  const r1=canPut(cid,k,A.p,A.r);if(r1!==true)return mat(A.m)?.code+" : "+r1;
+  if(B){const r2=canPut(cid,a,B.p,B.r);if(r2!==true)return mat(B.m)?.code+" : "+r2}
+  return true}
 function cellTap(k){const cid=UI.edtId;const sc=S.sched[cid]=S.sched[cid]||{};
   if(!UI.sel){if(sc[k]){UI.sel={k};render()}else sheetAddLesson(k);return}
   const a=UI.sel.k;if(a===k){UI.sel=null;render();return}
-  const A=sc[a],B=sc[k];
-  const r1=canPut(cid,k,A?.p);if(r1!==true){toast("Impossible : "+mat(A.m).code+" — "+r1);return}
-  if(B){const r2=canPut(cid,a,B.p);if(r2!==true){toast("Impossible : "+mat(B.m).code+" — "+r2);return}}
-  if(B){sc[a]=B}else delete sc[a];sc[k]=A;UI.sel=null;save();render();toast(B?"Cours échangés":"Cours déplacé")}
+  const r=moveCheck(cid,a,k);if(r!==true){toast("Impossible : "+r);return}
+  const A=sc[a],B=sc[k];if(B){sc[a]=B}else delete sc[a];sc[k]=A;UI.sel=null;save();render();toast(B?"Cours échangés":"Cours déplacé")}
+
+/* ===================== Changement d'horaire en cours d'année ===================== */
+function snapshot(label){if(!Object.keys(S.sched||{}).length)return;
+  S.history=S.history||[];const ind={};S.profs.forEach(p=>ind[p.id]=p.indispo);
+  S.history.unshift({id:uid(),at:Date.now(),label,sched:JSON.stringify(S.sched),ind:JSON.stringify(ind)});S.history=S.history.slice(0,5)}
+const keyLbl=k=>{const [d,s]=k.split("-").map(Number);return JOURS[d].charAt(0)+JOURS[d].slice(1).toLowerCase()+" "+S.creneaux[s]?.debut};
+// Cherche une nouvelle place pour chaque cours touché par les nouvelles indisponibilités
+function planChange(pid,newInd){
+  const work=JSON.parse(JSON.stringify(S.sched));const N=nS();const P=prof(pid);
+  const busyP=(q,k,except)=>{for(const c of S.classes){if(c.id===except)continue;const v=(work[c.id]||{})[k];if(v&&v.p===q)return true}return false};
+  const busyR=(rid,k,except)=>{const r=salle(rid);if(!r||r.multi)return false;for(const c of S.classes){if(c.id===except)continue;const v=(work[c.id]||{})[k];if(v&&v.r===rid)return true}return false};
+  const indOf=q=>q===pid?newInd:(prof(q)?.indispo||{});
+  const okAt=(cid,v,k)=>{const [d,s]=k.split("-").map(Number);if(isOff(d,s))return false;if(v.p&&(indOf(v.p)[k]||busyP(v.p,k,cid)))return false;if(v.r&&busyR(v.r,k,cid))return false;return true};
+  const sameDay=(cid,m,d,ex)=>Object.entries(work[cid]||{}).some(([k,v])=>v.m===m&&k.split("-")[0]==d&&!ex.includes(k));
+  const conflicts=[];for(const c of S.classes){for(const [k,v] of Object.entries(work[c.id]||{})) if(v.p===pid&&newInd[k]) conflicts.push({c:c.id,k})}
+  const moves=[],fails=[];
+  for(const cf of conflicts){const sc=work[cf.c];const A=sc[cf.k];if(!A)continue;let best=null;
+    for(let d=0;d<5;d++)for(let s=0;s<N;s++){const k=d+"-"+s;if(k===cf.k)continue;const B=sc[k];
+      if(!okAt(cf.c,A,k))continue;
+      if(B){if(B.p===pid&&newInd[cf.k])continue;if(!okAt(cf.c,B,cf.k))continue}
+      let score=B?4:0;if(sameDay(cf.c,A.m,d,[cf.k,k]))score+=6;if(B&&sameDay(cf.c,B.m,+cf.k.split("-")[0],[cf.k,k]))score+=6;
+      if(s===N-1)score+=1.5;if(mat(A.m)?.matin&&grp(s)===3)score+=2;
+      const adj=sc[d+"-"+(s-1)]||sc[d+"-"+(s+1)];if(!B&&!adj)score+=1;
+      if(!best||score<best.score)best={k,score,B}}
+    if(!best){fails.push({c:cf.c,k:cf.k,m:A.m});continue}
+    if(best.B){sc[cf.k]=best.B}else delete sc[cf.k];sc[best.k]=A;
+    moves.push({c:cf.c,from:cf.k,to:best.k,m:A.m,p:A.p,swap:best.B?{m:best.B.m,p:best.B.p}:null})}
+  return {work,moves,fails,conflicts:conflicts.length};
+}
+function sheetChange(){
+  if(!S.profs.length){toast("Ajoutez d'abord des professeurs");return}
+  const pid=sheetCtx?.cp||S.profs[0].id;const P=prof(pid);sheetCtx={cp:pid,ind:{...(sheetCtx?.cp===pid&&sheetCtx.ind?sheetCtx.ind:P.indispo)}};
+  openSheet(`<h3>Changement d'horaire d'un professeur</h3>
+  <p class="small muted" style="margin:0">Choisissez le professeur, puis touchez les heures où il ne peut plus venir. HorairePro déplace ses cours vers des heures libres, sans créer de conflit.</p>
+  <label class="f">Professeur<select id="ch-prof" data-act="chProf">${S.profs.map(p=>`<option value="${p.id}" ${p.id===pid?"selected":""}>${esc(p.nom)}</option>`).join("")}</select></label>
+  <div id="ch-grid">${changeGrid(pid)}</div>
+  <div class="small muted">Case grise avec une classe = cours actuel. Case rouge = nouvelle indisponibilité.</div>
+  <div class="row"><button class="btn grow" data-act="close">Annuler</button><button class="btn primary grow" data-act="chPlan">Chercher les solutions</button></div>`)}
+function changeGrid(pid){const N=nS();const cells=Object.fromEntries(profCells(pid).map(x=>[x.k,x]));
+  let h=`<div class="mini"><div></div>${JOURS.map(j=>`<div>${j.slice(0,3)}</div>`).join("")}`;
+  for(let s=0;s<N;s++){h+=`<div class="hh">${S.creneaux[s].debut}</div>`;for(let d=0;d<5;d++){const k=d+"-"+s;
+    if(isOff(d,s)){h+=`<button class="x" disabled aria-label="Fermé"></button>`;continue}
+    const c=cells[k]?cls(cells[k].c):null;const on=sheetCtx.ind[k];
+    h+=`<button type="button" class="${on?"on":""} ${c&&!on?"has":""}" data-act="chCell" data-k="${k}">${on?(c?esc(c.nom):"✕"):(c?esc(c.nom):"")}</button>`}}
+  return h+`</div>`}
+function sheetPlan(){const pid=sheetCtx.cp;const P=prof(pid);const plan=planChange(pid,sheetCtx.ind);sheetCtx.plan=plan;
+  const touched=new Set([pid]);plan.moves.forEach(mv=>{if(mv.swap?.p)touched.add(mv.swap.p)});
+  openSheet(`<h3>Solutions pour ${esc(P.nom)}</h3>
+  ${plan.conflicts?`<p class="small muted" style="margin:0">${plan.conflicts} cours touché${plan.conflicts>1?"s":""} par le changement.</p>`:`<div class="tip"><div><b>Aucun cours à déplacer</b>Les nouvelles indisponibilités tombent sur des heures libres. Elles seront enregistrées pour les prochaines générations.</div></div>`}
+  ${plan.moves.length?`<div class="list">${plan.moves.map(mv=>{const m=mat(mv.m),c=cls(mv.c);return `<div class="item" style="cursor:default"><span class="mat" style="${hcode(m.h)}">${esc(m.code)}</span><span class="grow"><b>${esc(c.nom)} : ${keyLbl(mv.from)} → ${keyLbl(mv.to)}</b><span>${mv.swap?"Échangé avec "+esc(mat(mv.swap.m)?.code)+" ("+esc(shortName(prof(mv.swap.p)?.nom)||"sans prof")+")":"Vers une heure libre"}</span></span></div>`}).join("")}</div>`:""}
+  ${plan.fails.length?`<div class="banner" style="background:var(--danger-soft)"><span><b style="color:var(--danger)">${plan.fails.length} cours sans solution automatique :</b> ${plan.fails.map(f=>esc(cls(f.c)?.nom)+" "+esc(mat(f.m)?.code)+" ("+keyLbl(f.k)+")").join(", ")}. Ils resteront à leur place ; déplacez-les à la main.</span></div>`:""}
+  ${plan.moves.length?`<div class="small muted">Professeurs concernés : ${[...touched].map(q=>esc(prof(q)?.nom||"")).join(", ")}. Pensez à les prévenir.</div>`:""}
+  <label class="f">Applicable à partir du<input id="ch-date" placeholder="ex : lundi 9 novembre"></label>
+  <div class="row"><button class="btn grow" data-act="chBack">Retour</button><button class="btn primary grow" data-act="chApply">Appliquer</button></div>`)}
+function applyChange(){const pid=sheetCtx.cp;const P=prof(pid);const plan=sheetCtx.plan;const date=document.getElementById("ch-date")?.value.trim();
+  snapshot("Avant changement de "+P.nom+(date?" (à partir du "+date+")":""));
+  P.indispo={...sheetCtx.ind};S.sched=plan.work;
+  S.history[0].after=(plan.moves.length?plan.moves.length+" cours déplacé(s)":"Indisponibilités mises à jour")+(date?" · à partir du "+date:"");
+  S.history[0].who=[...new Set([pid,...plan.moves.map(m=>m.swap?.p).filter(Boolean)])];
+  save();closeSheet();UI.tab="gen";render();toast(plan.moves.length?plan.moves.length+" cours déplacé(s), sans conflit":"Indisponibilités enregistrées")}
+function restoreSnap(id){const h=S.history.find(x=>x.id===id);if(!h)return;
+  S.sched=JSON.parse(h.sched);const ind=JSON.parse(h.ind||"{}");S.profs.forEach(p=>{if(ind[p.id])p.indispo=ind[p.id]});
+  S.history=S.history.filter(x=>x.id!==id);save();render();toast("Emplois du temps restaurés")}
 
 /* ===================== PDF ===================== */
 function hslToRgb(h,s,l){s/=100;l/=100;const k=n=>(n+h/30)%12;const a=s*Math.min(l,1-l);const f=n=>l-a*Math.max(-1,Math.min(k(n)-3,Math.min(9-k(n),1)));return [255*f(0),255*f(8),255*f(4)].map(Math.round)}
@@ -907,15 +1020,15 @@ function pdfPage(doc,kind,id,first){
   let title,info;
   if(kind==="classe"){const c=cls(id);const pp=prof(c.pp);
     title="EMPLOI DU TEMPS  —  CLASSE DE "+c.nom;
-    info=["Effectif : "+(c.effectif||"-"),"Professeur principal : "+(pp?.nom||"-"),c.salle?"Salle : "+c.salle:"",classHours(c)+" h / semaine"].filter(Boolean).join("     ");
+    info=["Effectif : "+(c.effectif||"-"),"Professeur principal : "+(pp?.nom||"-"),c.salle?"Salle : "+salleNom(c.salle):"",classHours(c)+" h / semaine"].filter(Boolean).join("     ");
   }else{const p=prof(id);
     title="EMPLOI DU TEMPS  —  "+(p.sexe==="F"?"MME ":"M. ")+p.nom.toUpperCase();
     info=["Discipline : "+p.mats.map(m=>mat(m)?.code).join(", "),"Statut : "+p.statut,"Diplôme : "+(p.diplome||"-"),p.matricule?"Matricule : "+p.matricule:"",p.tel?"Tél : "+p.tel:""].filter(Boolean).join("     ");}
   doc.setFont("helvetica","bold");doc.setFontSize(10.5);doc.setTextColor(...ACC);doc.text(pdfTxt(title),W/2,29.5,{align:"center"});
   doc.setTextColor(20);doc.setFont("helvetica","normal");doc.setFontSize(6.8);doc.text(pdfTxt(info),W/2,33.8,{align:"center",maxWidth:W-2*M});
   const N=nS();const body=[];let lookup;
-  if(kind==="classe"){lookup=k=>{const v=(S.sched[id]||{})[k];if(!v)return null;const m=mat(v.m);return {t:(m?.code||"")+"\n"+shortName(prof(v.p)?.nom||""),h:m?.h}}}
-  else{const pc=Object.fromEntries(profCells(id).map(x=>[x.k,x]));lookup=k=>{const v=pc[k];if(!v)return null;const m=mat(v.m);return {t:(cls(v.c)?.nom||"")+"\n"+(m?.code||""),h:m?.h}}}
+  if(kind==="classe"){const home=cls(id)?.salle;lookup=k=>{const v=(S.sched[id]||{})[k];if(!v)return null;const m=mat(v.m);return {t:(m?.code||"")+"\n"+shortName(prof(v.p)?.nom||"")+(v.r&&v.r!==home?"\n"+salleNom(v.r):""),h:m?.h}}}
+  else{const pc=Object.fromEntries(profCells(id).map(x=>[x.k,x]));lookup=k=>{const v=pc[k];if(!v)return null;const m=mat(v.m);return {t:(cls(v.c)?.nom||"")+" · "+(m?.code||"")+(v.r?"\n"+salleNom(v.r):""),h:m?.h}}}
   for(let s=0;s<N;s++){const bl=breakLabel(s);
     if(bl) body.push([{content:pdfTxt(bl.toUpperCase()),colSpan:6,styles:{halign:"center",fontSize:5,textColor:120,fillColor:[244,247,245],cellPadding:0.5,minCellHeight:3.2}}]);
     const cr=S.creneaux[s];const row=[cr.debut+"\n"+cr.fin];
@@ -979,7 +1092,7 @@ document.addEventListener("click",async e=>{
     case "editClass": sheetClass(v);break;
     case "addMany": sheetMany();break;
     case "saveClass":{const nom=document.getElementById("fc-nom").value.trim();if(!nom){toast("Donnez un nom à la classe");return}
-      const o={nom,niveau:document.getElementById("fc-niv").value,effectif:+document.getElementById("fc-eff").value||0,salle:document.getElementById("fc-salle").value.trim(),pp:document.getElementById("fc-pp").value||null};
+      const o={nom,niveau:document.getElementById("fc-niv").value,effectif:+document.getElementById("fc-eff").value||0,salle:document.getElementById("fc-salle").value,pp:document.getElementById("fc-pp").value||null};
       if(v){Object.assign(cls(v),o)}else S.classes.push({id:uid(),...o});S.exemple=false;save();closeSheet();render();break}
     case "saveMany":{const niv=document.getElementById("fm-niv").value,n=Math.min(20,+document.getElementById("fm-n").value||1),eff=+document.getElementById("fm-eff").value||0;
       const p=classPrefix(niv);const ex=S.classes.filter(c=>c.niveau===niv).length;
@@ -1000,9 +1113,26 @@ document.addEventListener("click",async e=>{
       for(const c in S.sched)for(const k in S.sched[c]) if(S.sched[c][k].p===v) S.sched[c][k].p=null;
       S.classes.forEach(c=>{if(c.pp===v)c.pp=null});save();render()});break;
     case "editMat": sheetMat(v);break;
+    case "editSalle": sheetSalle(v);break;
+    case "saveSalle":{const nom=document.getElementById("fs-nom").value.trim();if(!nom){toast("Donnez un nom à la salle");return}
+      const o={nom,type:document.getElementById("fs-type").value,multi:document.getElementById("fs-multi").checked};
+      if(v)Object.assign(salle(v),o);else S.salles.push({id:uid(),...o});save();closeSheet();render();break}
+    case "delSalle": confirmBox("Supprimer cette salle ? Les cours concernés n'auront plus de salle.","Supprimer",()=>{S.salles=S.salles.filter(r=>r.id!==v);
+      S.classes.forEach(c=>{if(c.salle===v)c.salle=""});S.matieres.forEach(m=>{if(m.salle===v)m.salle=""});
+      for(const c in S.sched)for(const k in S.sched[c]) if(S.sched[c][k].r===v) S.sched[c][k].r="";save();render()});break;
+    case "autoSalles":{let n=0;const used=new Set(S.classes.map(c=>c.salle).filter(Boolean));let i=S.salles.filter(r=>r.type==="Classe").length;
+      S.classes.forEach(c=>{if(!c.salle||!salle(c.salle)){const r={id:uid(),nom:"Salle "+(++i),type:"Classe",multi:false};S.salles.push(r);c.salle=r.id;n++}});
+      for(const cid in S.sched)for(const k in S.sched[cid]){const v2=S.sched[cid][k];if(!v2.r)v2.r=roomFor(cid,v2.m)}
+      save();render();toast(n?n+" salle(s) créée(s) et attribuée(s)":"Chaque classe a déjà sa salle");break}
+    case "openChange": sheetCtx=null;sheetChange();break;
+    case "chCell":{const k=t.dataset.k;if(sheetCtx.ind[k])delete sheetCtx.ind[k];else sheetCtx.ind[k]=true;document.getElementById("ch-grid").innerHTML=changeGrid(sheetCtx.cp);break}
+    case "chPlan": sheetPlan();break;
+    case "chBack": sheetChange();break;
+    case "chApply": applyChange();break;
+    case "restore": confirmBox("Revenir à cette version des emplois du temps ? Les changements faits depuis seront annulés.","Restaurer",()=>restoreSnap(v));break;
     case "hue": sheetCtx.h=+v;document.querySelectorAll("#fx-sw button").forEach(b=>b.setAttribute("aria-pressed",b.dataset.v===v));break;
     case "saveMat":{const code=document.getElementById("fx-code").value.trim().toUpperCase();if(!code){toast("Saisissez un code court");return}
-      const o={code,nom:document.getElementById("fx-nom").value.trim()||code,h:sheetCtx.h,bloc:document.getElementById("fx-bloc").checked,matin:document.getElementById("fx-matin").checked};
+      const o={code,nom:document.getElementById("fx-nom").value.trim()||code,h:sheetCtx.h,bloc:document.getElementById("fx-bloc").checked,matin:document.getElementById("fx-matin").checked,salle:document.getElementById("fx-salle").value};
       if(v)Object.assign(mat(v),o);else{if(S.matieres.some(m=>m.id===code)){toast("Ce code existe déjà");return}S.matieres.push({id:code,...o})}save();closeSheet();render();break}
     case "delMat": confirmBox("Supprimer cette matière de toutes les classes ?","Supprimer",()=>{S.matieres=S.matieres.filter(m=>m.id!==v);
       for(const n in S.grille) delete S.grille[n][v];for(const c in S.sched)for(const k in S.sched[c]) if(S.sched[c][k].m===v) delete S.sched[c][k];
@@ -1016,13 +1146,13 @@ document.addEventListener("click",async e=>{
     case "cancelSel": UI.sel=null;render();break;
     case "clearCell": delete (S.sched[UI.edtId]||{})[UI.sel.k];UI.sel=null;save();render();toast("Cours retiré");break;
     case "addLesson":{const k=t.dataset.k,m=t.dataset.m;const pid=(S.aff[UI.edtId]||{})[m]||null;
-      (S.sched[UI.edtId]=S.sched[UI.edtId]||{})[k]={m,p:pid&&prof(pid)?pid:null};save();closeSheet();render();toast("Cours ajouté");break}
+      (S.sched[UI.edtId]=S.sched[UI.edtId]||{})[k]={m,p:pid&&prof(pid)?pid:null,r:roomFor(UI.edtId,m)};save();closeSheet();render();toast("Cours ajouté");break}
     case "addSlot":{const l=S.creneaux[S.creneaux.length-1];S.creneaux.push({debut:l?l.fin:"07H00",fin:"",g:l?l.g:1});save();render();break}
     case "delSlot":{const i=+t.dataset.i;confirmBox("Supprimer ce créneau ? Les cours placés à cette heure seront retirés.","Supprimer",()=>{
       const shift=o=>{const n={};for(const k in o){const [d,s]=k.split("-").map(Number);if(s===i)continue;n[d+"-"+(s>i?s-1:s)]=o[k]}return n};
       S.creneaux.splice(i,1);S.off=shift(S.off);for(const c in S.sched)S.sched[c]=shift(S.sched[c]);S.profs.forEach(p=>p.indispo=shift(p.indispo));save();render()});break}
-    case "pdfOne":{if(!guard())return;const arr=UI.edtMode==="classe"?cls(UI.edtId):prof(UI.edtId);makePDF(UI.edtMode,[UI.edtId],"EDT_"+arr.nom+".pdf");break}
-    case "pdfAll":{if(!guard())return;const ids=(UI.edtMode==="classe"?S.classes:S.profs).map(x=>x.id);makePDF(UI.edtMode,ids,"EDT_"+(UI.edtMode==="classe"?"toutes_les_classes":"tous_les_professeurs")+".pdf");break}
+    case "pdfOne":{if(!guard())return;if(UI.edtMode==="salle"){toast("Le PDF est disponible par classe et par professeur.");return}const arr=UI.edtMode==="classe"?cls(UI.edtId):prof(UI.edtId);makePDF(UI.edtMode,[UI.edtId],"EDT_"+arr.nom+".pdf");break}
+    case "pdfAll":{if(!guard())return;if(UI.edtMode==="salle"){toast("Le PDF est disponible par classe et par professeur.");return}const ids=(UI.edtMode==="classe"?S.classes:S.profs).map(x=>x.id);makePDF(UI.edtMode,ids,"EDT_"+(UI.edtMode==="classe"?"toutes_les_classes":"tous_les_professeurs")+".pdf");break}
     case "exportJson": saveFile("sauvegarde_"+APP+"_"+(S.etab.sigle||S.etab.nom||"etablissement")+".json",JSON.stringify(S),"application/json");break;
     case "goLic": UI.tab="set";render();scrollTo(0,0);break;
     case "activate":{const v2=document.getElementById("lic-code")?.value;if(!v2||!v2.trim()){toast("Collez d'abord le code reçu");return}activate(v2);break}
@@ -1040,6 +1170,7 @@ document.addEventListener("change",e=>{const t=e.target;const a=t.dataset?.act;
   else if(a==="vol"){const g=S.grille[t.dataset.n]=S.grille[t.dataset.n]||{};const n=Math.max(0,+t.value||0);if(n)g[t.dataset.m]=n;else delete g[t.dataset.m];save();render()}
   else if(a==="setAff"){(S.aff[t.dataset.c]=S.aff[t.dataset.c]||{})[t.dataset.m]=t.value||undefined;if(!t.value)delete S.aff[t.dataset.c][t.dataset.m];save();render()}
   else if(a==="edtPick"){UI.edtId=t.value;UI.sel=null;render()}
+  else if(a==="chProf"){sheetCtx={cp:t.value};sheetChange()}
   else if(a==="optBloc"){S.gen.bloc2=t.checked;save()}
 });
 document.getElementById("fileIn").addEventListener("change",e=>{const f=e.target.files[0];if(!f)return;const r=new FileReader();
