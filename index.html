@@ -64,7 +64,7 @@ button,input,select,textarea{font:inherit;color:inherit}
 main{padding-left:max(18px,env(safe-area-inset-left,0px));padding-right:max(18px,env(safe-area-inset-right,0px));
   padding-block:6px calc(104px + env(safe-area-inset-bottom,0px));display:flex;flex-direction:column;gap:16px}
 nav.tabs{position:fixed;bottom:0;left:50%;transform:translateX(-50%);width:min(100%,480px);z-index:20;background:var(--surface);border-radius:22px 22px 0 0;box-shadow:0 -6px 24px rgb(16 64 42 / .08);
-  display:grid;grid-template-columns:repeat(5,1fr);padding:6px max(6px,env(safe-area-inset-right,0px)) calc(8px + env(safe-area-inset-bottom,0px)) max(6px,env(safe-area-inset-left,0px))}
+  display:grid;grid-template-columns:repeat(6,1fr);padding:6px max(6px,env(safe-area-inset-right,0px)) calc(8px + env(safe-area-inset-bottom,0px)) max(6px,env(safe-area-inset-left,0px))}
 nav.tabs button{background:none;border:0;padding:8px 2px 4px;display:flex;flex-direction:column;align-items:center;gap:4px;font-size:11px;font-weight:600;color:var(--muted);cursor:pointer}
 nav.tabs button svg{width:23px;height:23px}
 nav.tabs button[aria-current="true"]{color:var(--accent)}
@@ -192,6 +192,15 @@ table.edt td.c span.b15{display:block;white-space:normal;overflow:visible;line-h
 table.edt td.c.blk1{border-bottom-left-radius:3px;border-bottom-right-radius:3px}
 table.edt td.c.blk2{border-top-left-radius:3px;border-top-right-radius:3px}
 .topo{color:var(--danger);font-weight:700;font-style:italic}
+.stats{display:grid;grid-template-columns:repeat(2,1fr);gap:10px}
+[data-layout="desk"] .stats{grid-template-columns:repeat(4,1fr)}
+.stat{background:var(--surface);border-radius:18px;padding:12px 14px;box-shadow:var(--sh)}
+.stat b{display:block;font-size:22px;font-weight:800;font-variant-numeric:tabular-nums}
+.stat span{font-size:12px;color:var(--muted)}
+.card.tool{border:0;text-align:left;cursor:pointer;color:var(--ink);font:inherit;align-items:flex-start;gap:8px}
+.card.tool b{font-size:15.5px}
+.card.tool:hover{box-shadow:0 10px 28px rgb(17 24 39 / .1)}
+nav.tabs button{font-size:10.5px}
 .ppband{display:flex;align-items:center;gap:12px;background:var(--accent-soft);border-radius:16px;padding:10px 12px}
 .ppband .grow span{display:block;font-size:11.5px;color:var(--accent);font-weight:700;text-transform:uppercase;letter-spacing:.05em}
 .ppband .grow b{display:block;font-size:15px}
@@ -388,7 +397,7 @@ function defaultState(){
   const cr=[["07H15","08H10",1],["08H10","09H05",1],["09H05","10H00",1],["10H15","11H10",2],["11H10","12H05",2],
             ["14H00","15H00",3],["15H00","16H00",3],["16H00","17H00",3],["17H00","18H00",3]].map(([debut,fin,g])=>({debut,fin,g}));
   const off={}; for(let s=5;s<9;s++) off["2-"+s]=true; // mercredi après-midi libre
-  return {v:1,gridV:4,decoup:{},at:0,exemple:false,install:"",licence:"",salles:[],history:[],
+  return {v:1,gridV:4,decoup:{},absences:[],at:0,exemple:false,install:"",licence:"",salles:[],history:[],
     etab:defaultEtab(),
     creneaux:cr,off,matieres:mats,grille,classes:[],profs:[],aff:{},sched:{},
     gen:{bloc2:true,report:null}};
@@ -429,7 +438,7 @@ function migrate(x){const d=defaultState();for(const k in d) if(x[k]===undefined
   if(x.etab.directeur&&!x.etab.etudesTitre) x.etab.etudesTitre=x.etab.directeur;delete x.etab.directeur;
   x.etab={...defaultEtab(),...x.etab};
   x.profs.forEach(p=>{p.matricule=p.matricule||"";p.origine=p.origine||"";p.indispo=p.indispo||{};if(p.maxAuto===undefined)p.maxAuto=(+p.max===24)});
-  x.salles=x.salles||[];x.history=x.history||[];x.decoup=x.decoup||{};
+  x.salles=x.salles||[];x.history=x.history||[];x.decoup=x.decoup||{};x.absences=x.absences||[];
   {const eps=x.matieres.find(m=>m.id==="EPS");if(eps){let t=x.salles.find(r=>r.id===eps.salle&&/^Terrain|Plateau/i.test(r.type||""))||x.salles.find(r=>/^Terrain|Plateau/i.test(r.type||""));
     if(!t){t={id:uid(),nom:"Terrain de sport",type:"Terrain / Plateau EPS",multi:true};x.salles.push(t)}eps.salle=t.id;
     for(const cid in x.sched||{})for(const v of Object.values(x.sched[cid])) if(v.m==="EPS"&&!(x.salles.find(r=>r.id===v.r&&/^Terrain|Plateau/i.test(r.type||""))))v.r=t.id}}
@@ -452,6 +461,7 @@ function migrate(x){const d=defaultState();for(const k in d) if(x[k]===undefined
 /* ===================== Licence (abonnement annuel) ===================== */
 // Contact du vendeur affiché aux établissements
 const VENDOR={nom:"HorairePro",tel:"07 48 88 46 37",wa:"2250748884637",site:"https://horairepro.onrender.com/"};
+const API_URL="https://horairepro-api.onrender.com";const PKEY="horairepro-paiement";
 // Clé publique : vérifie que les codes viennent bien de l'admin HorairePro
 const PUBKEY={"kty":"EC","crv":"P-256","x":"AtByO7j6hC8Y4HZPhoVdrfmeH3o3D9KMUYUG4G6PB1c","y":"6cuVoRgpOdhG954iiemfJnfqv9YRRrKnibDZTi8R-vM"};
 const TRIAL_DAYS=30,LKEY="horairepro-licence",IKEY="horairepro-install";
@@ -479,7 +489,11 @@ function licStatus(){
 const SAMPLE_NAME="Collège Privé Les Bâtisseurs (exemple)";
 function canUse(){return (S.exemple&&S.etab.nom===SAMPLE_NAME)||licStatus().mode!=="expire"}
 function keepLic(n){n.licence=S?.licence||"";n.install=S?.install||"";return n}
-function guard(){if(canUse())return true;sheetLicence();return false}
+function overOffer(){return LIC.ok&&LIC.data&&+LIC.data.c>0&&S.classes.length>+LIC.data.c&&!S.exemple}
+function guard(){if(!canUse()){sheetLicence();return false}
+  if(overOffer()){const msg="Bonjour, je souhaite passer à l'offre supérieure HorairePro pour "+(S.etab.nom||"mon établissement")+" ("+S.classes.length+" classes).";
+    openSheet(`<h3>Offre dépassée</h3><p style="margin:0">Votre offre <b>${esc(LIC.data.o||"")}</b> permet <b>${LIC.data.c} classes</b>. Vous en avez <b>${S.classes.length}</b>.</p><p class="small muted" style="margin:0">Passez à l'offre supérieure pour générer et imprimer les emplois du temps de toutes vos classes.</p><a class="btn block" style="background:#1FA855;color:#fff" href="${waLink(msg)}" target="_blank" rel="noopener">Demander l'offre supérieure sur WhatsApp</a><button class="btn ghost" data-act="close">Fermer</button>`);return false}
+  return true}
 async function loadLicence(){
   let code=S.licence||"";try{code=code||localStorage.getItem(LKEY)||""}catch(e){}
   if(!code) return;const r=await verifyCode(code);
@@ -493,7 +507,7 @@ async function activate(raw){
 }
 function waLink(msg){return "https://wa.me/"+VENDOR.wa+"?text="+encodeURIComponent(msg)}
 function licenceBox(full){const st=licStatus();
-  const head=st.mode==="licence"?`<div class="lic ok"><span class="tile solid">${svg("check")}</span><div><b>Licence active</b><span>${esc(st.data.n)} · jusqu'au ${frDate(st.data.e)} (${st.left} j)</span></div></div>`
+  const head=st.mode==="licence"?`<div class="lic ok"><span class="tile solid">${svg("check")}</span><div><b>Licence active${st.data.o?" · "+esc(st.data.o):""}</b><span>${esc(st.data.n)} · jusqu'au ${frDate(st.data.e)} (${st.left} j)${+st.data.c?" · "+S.classes.length+" / "+st.data.c+" classes":""}</span></div></div>`
     :st.mode==="essai"?`<div class="lic warn"><span class="tile orange">${svg("gen")}</span><div><b>Essai gratuit : ${st.left} jour${st.left>1?"s":""} restant${st.left>1?"s":""}</b><span>Toutes les fonctions sont ouvertes pendant l'essai.</span></div></div>`
     :`<div class="lic bad"><span class="tile pink">${svg("gen")}</span><div><b>${st.data?"Licence expirée le "+frDate(st.data.e):"Période d'essai terminée"}</b><span>La génération et les PDF sont bloqués. Vos données sont conservées.</span></div></div>`;
   const msg="Bonjour, je souhaite "+(st.mode==="licence"?"renouveler":"activer")+" la licence HorairePro pour : "+(S.etab.nom||"mon établissement")+".";
@@ -501,7 +515,34 @@ function licenceBox(full){const st=licStatus();
   ${full||st.mode!=="licence"?`<label class="f">Code d'activation<textarea id="lic-code" rows="3" placeholder="Collez ici le code reçu (HP-…)"></textarea></label>
   <button class="btn primary block" data-act="activate">Activer la licence</button>`:""}
   <div class="small muted">Licence annuelle. Pour l'obtenir ou la renouveler, contactez ${VENDOR.nom} : <b style="user-select:all;color:var(--ink)">${VENDOR.tel}</b></div>
+  ${st.mode!=="licence"||st.left<=30?`<button class="btn primary block" data-act="payOpen">Payer par Mobile Money</button>`:""}
   <a class="btn block" href="${waLink(msg)}" target="_blank" rel="noopener">Écrire sur WhatsApp</a>`}
+/* ---- Paiement en ligne (CinetPay) : la licence arrive automatiquement ---- */
+async function api(path,opt){const r=await fetch(API_URL+path,opt);const j=await r.json().catch(()=>({}));if(!r.ok)throw new Error(j.error||"Service de paiement indisponible.");return j}
+async function sheetPay(){if(S.exemple){toast("Commencez à zéro avec votre établissement avant de payer.");return}if(!S.etab.nom){toast("Renseignez d'abord le nom de l'établissement (Réglages).");UI.tab="set";render();return}
+  openSheet(`<h3>Payer la licence</h3><div class="spin"></div><p class="small muted" style="text-align:center;margin:0">Connexion au service de paiement… La première connexion peut prendre jusqu'à une minute.</p>`);
+  let offres;try{offres=(await api("/offres")).offres}catch(e){openSheet(`<h3>Paiement indisponible</h3><p style="margin:0">${esc(e.message)} Vous pouvez payer et recevoir votre code par WhatsApp.</p><button class="btn" data-act="close">Fermer</button>`);return}
+  const n=S.classes.length;const of=offres.find(o=>!o.max||n<=o.max)||offres[offres.length-1];
+  openSheet(`<h3>Payer la licence annuelle</h3>
+  <div class="lic ok"><span class="tile solid">${svg("check")}</span><div><b>${esc(of.nom)} · ${(+of.prix).toLocaleString("fr-FR")} FCFA</b><span>${esc(S.etab.nom)} · ${n} classe${n>1?"s":""}${of.max?" (jusqu'à "+of.max+")":""} · valable jusqu'au 31 août</span></div></div>
+  <label class="f">Numéro Mobile Money<input id="pay-tel" inputmode="tel" value="${esc(S.etab.tel||"")}" placeholder="07 00 00 00 00"></label>
+  <span class="small muted">Vous allez sur la page sécurisée CinetPay (Orange Money, MTN MoMo, Moov Money, Wave, carte). Après le paiement, vous revenez ici et votre licence s'active toute seule.</span>
+  <button class="btn primary big block" data-act="payGo">Payer ${(+of.prix).toLocaleString("fr-FR")} FCFA</button>
+  ${(()=>{try{return localStorage.getItem(PKEY)?`<button class="btn block" data-act="payCheck">J'ai déjà payé : vérifier mon paiement</button>`:""}catch(e){return ""}})()}
+  <button class="btn ghost" data-act="close">Annuler</button>`)}
+async function payGo(){const tel=document.getElementById("pay-tel")?.value||"";
+  openSheet(`<h3>Préparation du paiement…</h3><div class="spin"></div>`);
+  try{const j=await api("/pay/init",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({nom:S.etab.nom,classes:S.classes.length,tel,ville:S.etab.ville})});
+    try{localStorage.setItem(PKEY,j.tid)}catch(e){}
+    openSheet(`<h3>Paiement prêt</h3><p style="margin:0">Référence : <b style="user-select:all">${esc(j.tid)}</b></p><a class="btn primary big block" href="${esc(j.payment_url)}">Aller payer sur CinetPay</a><span class="small muted">Gardez la référence. Si vous ne revenez pas automatiquement, rouvrez HorairePro : Réglages → Licence → « J'ai déjà payé ».</span>`);
+    if(STANDALONE) setTimeout(()=>{location.href=j.payment_url},400);
+  }catch(e){openSheet(`<h3>Paiement impossible</h3><p style="margin:0">${esc(e.message)}</p><button class="btn" data-act="close">Fermer</button>`)}}
+async function payCheck(tid,silent){tid=tid||(()=>{try{return localStorage.getItem(PKEY)}catch(e){return ""}})();if(!tid)return;
+  if(!silent)openSheet(`<h3>Vérification du paiement…</h3><div class="spin"></div><p class="small muted" style="text-align:center;margin:0">Référence ${esc(tid)}</p>`);
+  try{const j=await api("/pay/status?tid="+encodeURIComponent(tid));
+    if(j.status==="ACCEPTED"&&j.code){try{localStorage.removeItem(PKEY)}catch(e){}closeSheet();await activate(j.code);return}
+    if(!silent)openSheet(`<h3>Paiement pas encore confirmé</h3><p style="margin:0">CinetPay indique : <b>${esc(j.status||"en attente")}</b>. Si vous venez de payer, réessayez dans une minute.</p><button class="btn primary block" data-act="payCheck">Vérifier à nouveau</button><button class="btn ghost" data-act="close">Fermer</button>`)}
+  catch(e){if(!silent)openSheet(`<h3>Vérification impossible</h3><p style="margin:0">${esc(e.message)}</p><button class="btn" data-act="close">Fermer</button>`)}}
 function sheetLicence(){openSheet(`<h3>Licence nécessaire</h3>${licenceBox(true)}<button class="btn ghost" data-act="close">Fermer</button>`)}
 /* ===================== Utilitaires métier ===================== */
 const nS=()=>S.creneaux.length;
@@ -721,13 +762,14 @@ const ICON={
   layers:'<path d="m12 3 9 5-9 5-9-5zM3 13l9 5 9-5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/>',
   link:'<path d="M10 14a4 4 0 0 0 5.7 0l3-3a4 4 0 0 0-5.7-5.7l-1 1M14 10a4 4 0 0 0-5.7 0l-3 3a4 4 0 0 0 5.7 5.7l1-1" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>',
   check:'<path d="m5 12.5 4.5 4.5L19 7.5" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>',
+  outils:'<path d="M14.7 6.3a4 4 0 0 0-5.4 5.4L3 18l3 3 6.3-6.3a4 4 0 0 0 5.4-5.4l-2.6 2.6-2.4-.6-.6-2.4z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/>',
   bulb:'<path d="M9 18h6M10 21h4M12 3a6 6 0 0 0-3.5 10.9c.6.5 1 1.2 1 2V16h5v-.1c0-.8.4-1.5 1-2A6 6 0 0 0 12 3z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/>'
 };
 const svg=(k)=>`<svg viewBox="0 0 24 24" aria-hidden="true">${ICON[k]}</svg>`;
 const TONES=["orange","blue","violet","pink","teal","green"];
 const tone=(str)=>{let h=0;for(const ch of String(str))h=(h*31+ch.charCodeAt(0))>>>0;return TONES[h%TONES.length]};
 const initialsOf=n=>String(n||"?").split(/[\s-]+/).filter(Boolean).slice(0,2).map(w=>w[0]).join("").toUpperCase();
-const TAB_T={home:"",data:"Saisie des données",gen:"Génération",edt:"Emplois du temps",set:"Réglages"};
+const TAB_T={home:"",data:"Saisie des données",gen:"Génération",edt:"Emplois du temps",outils:"Outils",set:"Réglages"};
 const app=document.getElementById("app");
 
 function render(){
@@ -737,9 +779,9 @@ function render(){
   app.innerHTML=`
   <header class="top"><div class="grow">${UI.tab==="home"?`<small>Bonjour,</small><h1>${esc(e.chefNom||e.nom||APP)}</h1>`:`<small>${esc(e.nom||APP)}</small><h1>${TAB_T[UI.tab]}</h1>`}</div>
   <button class="logo" data-act="tab" data-v="set" aria-label="Établissement">${e.logo?`<img src="${e.logo}" alt="">`:esc(initials)}</button></header>
-  <main id="main">${({home:vHome,data:vData,gen:vGen,edt:vEdt,set:vSet})[UI.tab]()}</main>
+  <main id="main">${({home:vHome,data:vData,gen:vGen,edt:vEdt,outils:vOutils,set:vSet})[UI.tab]()}</main>
   ${UI.tab==="edt"&&UI.sel?vActionBar():""}
-  <nav class="tabs"><div class="sb-brand"><span class="tile solid">${svg("edt")}</span>${APP}</div>${[["home","Accueil"],["data","Saisie"],["gen","Générer"],["edt","Emplois du temps"],["set","Réglages"]].map(([k,l])=>
+  <nav class="tabs"><div class="sb-brand"><span class="tile solid">${svg("edt")}</span>${APP}</div>${[["home","Accueil"],["data","Saisie"],["gen","Générer"],["edt","Emplois du temps"],["outils","Outils"],["set","Réglages"]].map(([k,l])=>
     `<button data-act="tab" data-v="${k}" aria-current="${UI.tab===k}"><span class="pill"><svg viewBox="0 0 24 24">${ICON[k]}</svg></span>${UI.lay==="desk"?l:l.split(" ")[0]==="Emplois"?"Emplois":l}</button>`).join("")}${UI.lay==="desk"?`<div class="sb-foot">${esc(S.etab.nom||"")}<br>Année ${esc(S.etab.annee||"")}</div>`:""}</nav>`;
 }
 
@@ -932,7 +974,7 @@ function vEdt(){
   return `${conflictBanner()}${placeBanner()}${segs}
   <div class="pick-chips">${arr.map(x=>`<button data-act="goPick" data-v="${x.id}" aria-pressed="${x.id===id}">${esc(x.nom)}</button>`).join("")}</div>
   <div class="row"><select class="in grow edt-pick" style="flex:1" id="edt-pick" data-act="edtPick">${arr.map(x=>`<option value="${x.id}" ${x.id===id?"selected":""}>${esc(x.nom)}</option>`).join("")}</select>
-  <button class="btn" data-act="pdfOne">PDF</button><button class="btn primary" data-act="pdfAll">Tout en PDF</button></div>
+  <button class="btn" data-act="pdfOne">PDF</button>${mode!=="salle"?`<button class="btn" data-act="shOne" data-k="${mode}" data-v="${id}">Partager</button>`:""}<button class="btn primary" data-act="pdfAll">Tout en PDF</button></div>
   ${mode==="classe"?ficheClasse(cls(id)):mode==="prof"?ficheProf(prof(id)):ficheSalle(salle(id))}`;
 }
 function telLine(e){return [e.tel,e.tel2].filter(Boolean).join(" / ")}
@@ -1294,6 +1336,8 @@ function pdfPage(doc,kind,id,first){
     title="EMPLOI DU TEMPS  —  CLASSE DE "+c.nom;
     info=["Effectif : "+(c.effectif||"-"),c.salle?"Salle : "+salleNom(c.salle):"",fmtH(classHours(c))+" / semaine"].filter(Boolean).join("     ");
     ppLbl="PROFESSEUR PRINCIPAL";ppVal=pp?(pp.sexe==="F"?"Mme ":"M. ")+pp.nom:"Non désigné";
+  }else if(kind==="salle"){const r=salle(id);title=(isTerrain(r)?"TERRAIN : ":"SALLE : ")+r.nom.toUpperCase();
+    let n=0;for(const c of S.classes)for(const v of Object.values(S.sched[c.id]||{})) if(v.r===id) n+=(v.w?0.5:(v.q||1));info=[r.type,fmtH(n)+" de cours par semaine",r.multi?"plusieurs classes possibles":""].filter(Boolean).join("     ");
   }else{const p=prof(id);const ppOf=S.classes.filter(c=>c.pp===p.id).map(c=>c.nom).join(", ");
     if(ppOf){ppLbl="PROFESSEUR PRINCIPAL DE";ppVal=ppOf}
     title="EMPLOI DU TEMPS  —  "+(p.sexe==="F"?"MME ":"M. ")+p.nom.toUpperCase();
@@ -1306,6 +1350,8 @@ function pdfPage(doc,kind,id,first){
   if(kind==="classe"){lookup=k=>{const it=itemsAt(id,k);if(!it.length)return null;
     if(it.length===1&&!it[0].w){const v=it[0],m=mat(v.m);const sp=v.blk?blkSpan(k,v):null;return {t:(m?.code||"")+(v.r?" · "+salleNom(v.r):"")+"\n"+(v.p?shortName(prof(v.p)?.nom||""):"(à pourvoir)")+(sp?(v.part===1?"\n1h30 : "+sp.deb+"-"+sp.fin:"\n(suite, fin "+sp.fin+")"):""),h:m?.h}}
     return {t:it.sort((a,b)=>a.w.localeCompare(b.w)).map(v=>"Sem. "+v.w+" : "+(mat(v.m)?.code||"")+" "+(v.p?shortName(prof(v.p)?.nom||""):"(à pourvoir)")).join("\n")+(it.length===1?"\nSem. "+(it[0].w==="A"?"B":"A")+" : libre":"")+(it[0].r?"\n"+salleNom(it[0].r):""),h:mat(it[0].m)?.h,half:true}}}
+  else if(kind==="salle"){lookup=k=>{const it=S.classes.flatMap(c=>itemsAt(c.id,k).filter(v=>v.r===id).map(v=>({...v,c:c.id})));if(!it.length)return null;
+    return {t:it.map(v=>(cls(v.c)?.nom||"")+" · "+(mat(v.m)?.code||"")).join("\n")+"\n"+(shortName(prof(it[0].p)?.nom)||""),h:mat(it[0].m)?.h}}}
   else{const pc=groupCells(profCells(id));lookup=k=>{const it=pc[k];if(!it)return null;
     if(it.length===1&&!it[0].w){const v=it[0],m=mat(v.m);const sp=v.blk?blkSpan(k,v):null;return {t:(cls(v.c)?.nom||"")+"\n"+(m?.code||"")+(v.r?" · "+salleNom(v.r):"")+(sp?(v.part===1?"\n1h30 : "+sp.deb+"-"+sp.fin:"\n(suite, fin "+sp.fin+")"):""),h:m?.h}}
     return {t:it.sort((a,b)=>a.w.localeCompare(b.w)).map(v=>"Sem. "+v.w+" : "+(cls(v.c)?.nom||"")+" "+(mat(v.m)?.code||"")+(v.r?" · "+salleNom(v.r):"")).join("\n")+(it.length===1?"\nSem. "+(it[0].w==="A"?"B":"A")+" : libre":""),h:mat(it[0].m)?.h,half:true}}}
@@ -1324,6 +1370,7 @@ function pdfPage(doc,kind,id,first){
   if(kind==="prof"){const p=prof(id);const {rows,total,sup,ppOf}=profRecap(p);
     sum="Récapitulatif :  "+rows.map(r=>Object.values(r.cl).map(c=>c.nom).join("/")+" ("+(mat(r.m)?.code||"")+") "+fmtH(r.h).replace(" ","")).join("  ·  ")+
       "     |     Total : "+fmtH(total)+"     Heures sup. : "+fmtH(sup)+(ppOf?"     Professeur principal de : "+ppOf:"");
+  }else if(kind==="salle"){sum="Classes accueillies :  "+[...new Set(S.classes.filter(c=>Object.values(S.sched[c.id]||{}).some(v=>v.r===id)).map(c=>c.nom))].join(", ")
   }else{const c=cls(id);sum="Disciplines :  "+needOf(c).map(x=>(mat(x.m)?.code||x.m)+" "+fmtH(x.h).replace(" ","")+" ("+(shortName(prof((S.aff[c.id]||{})[x.m])?.nom)||"-")+")").join("  ·  ")}
   if(anyHalf) sum+="     |     Sem. A / Sem. B : cours une semaine sur deux (1h30).";
   doc.setFont("helvetica","normal");const sl=doc.splitTextToSize(pdfTxt(sum),W-2*M).slice(0,3);doc.text(sl,M,y);
@@ -1360,6 +1407,7 @@ function pickLogoFile(){const inp=document.createElement("input");inp.type="file
 document.addEventListener("input",e=>{if(e.target.id==="fp-max"&&sheetCtx){sheetCtx.auto=false;const tag=document.getElementById("fp-maxtag");if(tag){tag.textContent="Saisi à la main";tag.className="chip warn"}}});
 document.addEventListener("click",async e=>{
   const t=e.target.closest("[data-act]");if(!t||t.disabled)return;const a=t.dataset.act,v=t.dataset.v;
+  if(t.tagName!=="SELECT"&&t.tagName!=="INPUT"&&await outilsClick(a,t,v))return;
   if(["etab","slot","vol","setAff","edtPick","optBloc"].includes(a)) return;
   switch(a){
     case "tab": UI.tab=v;UI.sel=null;render();scrollTo(0,0);break;
@@ -1453,9 +1501,12 @@ document.addEventListener("click",async e=>{
     case "delSlot":{const i=+t.dataset.i;confirmBox("Supprimer ce créneau ? Les cours placés à cette heure seront retirés.","Supprimer",()=>{
       const shift=o=>{const n={};for(const k in o){const [d,s]=k.split("-").map(Number);if(s===i)continue;n[d+"-"+(s>i?s-1:s)]=o[k]}return n};
       S.creneaux.splice(i,1);S.off=shift(S.off);for(const c in S.sched)S.sched[c]=shift(S.sched[c]);S.profs.forEach(p=>p.indispo=shift(p.indispo));save();render()});break}
-    case "pdfOne":{if(!guard())return;if(UI.edtMode==="salle"){toast("Le PDF est disponible par classe et par professeur.");return}const arr=UI.edtMode==="classe"?cls(UI.edtId):prof(UI.edtId);makePDF(UI.edtMode,[UI.edtId],"EDT_"+arr.nom+".pdf");break}
-    case "pdfAll":{if(!guard())return;if(UI.edtMode==="salle"){toast("Le PDF est disponible par classe et par professeur.");return}const ids=(UI.edtMode==="classe"?S.classes:S.profs).map(x=>x.id);makePDF(UI.edtMode,ids,"EDT_"+(UI.edtMode==="classe"?"toutes_les_classes":"tous_les_professeurs")+".pdf");break}
+    case "pdfOne":{if(!guard())return;const arr=UI.edtMode==="classe"?cls(UI.edtId):UI.edtMode==="salle"?salle(UI.edtId):prof(UI.edtId);makePDF(UI.edtMode,[UI.edtId],"EDT_"+arr.nom+".pdf");break}
+    case "pdfAll":{if(!guard())return;const ids=(UI.edtMode==="classe"?S.classes:UI.edtMode==="salle"?S.salles:S.profs).map(x=>x.id);makePDF(UI.edtMode,ids,"EDT_"+(UI.edtMode==="classe"?"toutes_les_classes":UI.edtMode==="salle"?"toutes_les_salles":"tous_les_professeurs")+".pdf");break}
     case "exportJson": saveFile("sauvegarde_"+APP+"_"+(S.etab.sigle||S.etab.nom||"etablissement")+".json",JSON.stringify(S),"application/json");break;
+    case "payOpen": sheetPay();break;
+    case "payGo": payGo();break;
+    case "payCheck": payCheck();break;
     case "goLic": UI.tab="set";render();scrollTo(0,0);break;
     case "activate":{const v2=document.getElementById("lic-code")?.value;if(!v2||!v2.trim()){toast("Collez d'abord le code reçu");return}activate(v2);break}
     case "pickLogo": pickLogoFile();break;
@@ -1468,6 +1519,7 @@ document.addEventListener("click",async e=>{
 });
 document.addEventListener("change",e=>{const t=e.target;const a=t.dataset?.act;
   if(t.classList?.contains("fp-mat")||t.id==="fp-du"){profSheetInfo();return}
+  if(a&&outilsChange(a,t))return;
   if(a==="etab"){S.etab[t.dataset.k]=t.value.trim();save();if(["nom","annee","dren","sigle"].includes(t.dataset.k)){const y=scrollY;render();scrollTo(0,y)}}
   else if(a==="slot"){const c=S.creneaux[+t.dataset.i];c[t.dataset.k]=t.dataset.k==="g"?+t.value:t.value.toUpperCase().replace(":","H");save()}
   else if(a==="vol"){const g=S.grille[t.dataset.n]=S.grille[t.dataset.n]||{};const n=Math.max(0,Math.round((parseFloat(String(t.value).replace(",","."))||0)*2)/2);if(n)g[t.dataset.m]=n;else delete g[t.dataset.m];save();render()}
@@ -1496,6 +1548,238 @@ function runGen(){
     toast(r.miss?r.miss+" h restent à placer à la main":"Emplois du temps générés, sans conflit")},60);
 }
 
+/* ===================== OUTILS : partage, espace prof, absences, devoirs, heures sup, stats, import ===================== */
+const OUT_T={partage:"Partager les emplois du temps",absences:"Absences et remplacements",devoirs:"Devoirs et compositions",hsup:"Heures supplémentaires",stats:"Statistiques",import:"Import rapide",portes:"Fiches de porte"};
+const MOIS=["janvier","février","mars","avril","mai","juin","juillet","août","septembre","octobre","novembre","décembre"];
+const isoDay=iso=>{const d=new Date(iso+"T00:00:00");const w=d.getDay();return w>=1&&w<=5?w-1:-1};
+const frDay=iso=>new Date(iso+"T00:00:00").toLocaleDateString("fr-FR",{weekday:"long",day:"numeric",month:"long"});
+const civ=p=>p?(p.sexe==="F"?"Mme ":"M. ")+p.nom:"";
+function todayIso(){const d=new Date();return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0")}
+
+function vOutils(){
+  if(UI.outil) return `<button class="btn ghost" data-act="outil" data-v="" style="align-self:flex-start">‹ Tous les outils</button>`+({partage:vPartage,absences:vAbsences,devoirs:vDevoirs,hsup:vHsup,stats:vStats,import:vImport,portes:vPortes})[UI.outil]();
+  const tiles=[["partage","link","green","Partager","Envoyer à chaque prof et chaque classe son emploi du temps (WhatsApp, lien)"],
+    ["absences","users","orange","Absences et remplacements","Un prof absent : qui peut le remplacer, heure par heure"],
+    ["devoirs","file","violet","Devoirs et compositions","Calendrier des devoirs de niveau, salles et surveillants"],
+    ["hsup","gen","pink","Heures supplémentaires","État du mois par professeur, prêt pour la comptabilité"],
+    ["stats","layers","blue","Statistiques","Charge des profs, salles, cours à pourvoir"],
+    ["portes","school","teal","Fiches de porte","Le PDF à coller sur chaque salle, labo et terrain"],
+    ["import","data","green","Import rapide","Classes et professeurs par copier-coller ou fichier Excel (CSV)"]];
+  return `<div class="cards">${tiles.map(([k,ic,tn,t,d])=>`<button class="card tool" data-act="outil" data-v="${k}"><span class="tile ${tn}">${svg(ic)}</span><b>${t}</b><span class="small muted">${d}</span></button>`).join("")}</div>`;
+}
+
+/* ---------- 1. Partage WhatsApp + espace professeur ---------- */
+function b64uEnc(bytes){let s="";bytes.forEach(b=>s+=String.fromCharCode(b));return btoa(s).replace(/\+/g,"-").replace(/\//g,"_").replace(/=+$/,"")}
+async function packData(obj){const raw=new TextEncoder().encode(JSON.stringify(obj));
+  if(window.CompressionStream){try{const cs=new Blob([raw]).stream().pipeThrough(new CompressionStream("deflate-raw"));const buf=new Uint8Array(await new Response(cs).arrayBuffer());return "z"+b64uEnc(buf)}catch(e){}}
+  return "j"+b64uEnc(raw)}
+function viewData(kind,id){const e=S.etab;const N=nS();const cells=[];
+  const list=kind==="prof"?profCells(id).map(x=>({...x,label:cls(x.c)?.nom||""})):Object.entries(S.sched[id]||{}).map(([k,v])=>({k:BKEY(k),...v,label:shortName(prof(v.p)?.nom)||"à pourvoir"}));
+  for(const x of list){const m=mat(x.m);const sp=x.blk?blkSpan(x.k,x):null;cells.push([x.k,x.label,m?.code||"",salleNom(x.r)||"",m?.h||0,x.blk?(x.part===1?"1h30 · "+sp.deb+"–"+sp.fin:"suite · fin "+sp.fin):""])}
+  const who=kind==="prof"?prof(id):cls(id);
+  return {v:1,t:kind,e:{n:e.nom,a:e.annee,d:e.dren,s:e.etudesTitre,sn:e.etudesNom},w:kind==="prof"?civ(who):"Classe de "+who.nom,
+    i:kind==="prof"?[who.mats.map(m=>mat(m)?.code).join(", "),who.statut].join(" · "):["PP : "+(civ(prof(who.pp))||"—"),"Salle : "+(salleNom(who.salle)||"—")].join(" · "),
+    cr:S.creneaux.map(c=>[c.debut,c.fin,c.g]),off:Object.keys(S.off),c:cells,g:new Date().toISOString().slice(0,10)}}
+async function viewLink(kind,id){return VENDOR.site.replace(/\/?$/,"/")+"prof.html#"+await packData(viewData(kind,id))}
+function pdfFor(kind,id){const doc=new window.jspdf.jsPDF({unit:"mm",format:"a5",orientation:"landscape"});pdfPage(doc,kind,id,true);return doc.output("blob")}
+function waNum(t){let p=String(t||"").replace(/\D/g,"");if(p.length===10)p="225"+p;return p}
+async function shareEdt(kind,id){if(!guard())return;if(!window.jspdf){toast("Le module PDF n'a pas pu se charger.");return}
+  const who=kind==="prof"?prof(id):cls(id);const name=strip("EDT_"+who.nom).replace(/[^\w.-]+/g,"_")+".pdf";
+  const link=await viewLink(kind,id);
+  const msg=(kind==="prof"?"Bonjour "+civ(who)+",\n\nVoici votre emploi du temps":"Emploi du temps de la classe de "+who.nom)+" ("+(S.etab.nom||APP)+", année "+S.etab.annee+").\nÀ consulter à tout moment sur votre téléphone : "+link;
+  const file=new File([pdfFor(kind,id)],name,{type:"application/pdf"});
+  if(navigator.canShare&&navigator.canShare({files:[file]})){try{await navigator.share({files:[file],title:"Emploi du temps",text:msg});return}catch(e){if(e.name==="AbortError")return}}
+  openSheet(`<h3>Envoyer à ${esc(kind==="prof"?civ(who):who.nom)}</h3>
+  <p class="small muted" style="margin:0">1. Téléchargez le PDF. 2. Ouvrez WhatsApp avec le message prêt (le lien permet aussi de voir l'emploi du temps sans PDF).</p>
+  <button class="btn primary block" data-act="shDl" data-k="${kind}" data-v="${id}">Télécharger le PDF</button>
+  <a class="btn block" style="background:#1FA855;color:#fff" href="https://wa.me/${kind==="prof"&&who.tel?waNum(who.tel):""}?text=${encodeURIComponent(msg)}" target="_blank" rel="noopener">Ouvrir WhatsApp${kind==="prof"&&who.tel?" ("+esc(who.tel)+")":""}</a>
+  <label class="f">Lien de consultation<input readonly value="${esc(link)}" onclick="this.select()"></label>
+  <button class="btn" data-act="copyTxt" data-v="${esc(link)}">Copier le lien</button><button class="btn ghost" data-act="close">Fermer</button>`)}
+function vPartage(){const mode=UI.shMode||"prof";const arr=mode==="prof"?S.profs:S.classes;
+  return `<section class="card"><h2>${OUT_T.partage}</h2><p class="muted small" style="margin:0">Chaque professeur reçoit son emploi du temps en PDF et un <b>lien personnel</b> pour le consulter sur son téléphone, même sans l'appli. Après un changement d'horaire, renvoyez-lui le lien.</p>
+  <div class="seg"><button data-act="shMode" data-v="prof" aria-pressed="${mode==="prof"}">Professeurs</button><button data-act="shMode" data-v="classe" aria-pressed="${mode==="classe"}">Classes</button></div></section>
+  <section class="card" style="padding-block:6px"><div class="list">${arr.map(x=>`<div class="item" style="cursor:default"><span class="avatar tile ${tone(x.nom)}" style="border-radius:50%">${esc(mode==="prof"?initialsOf(x.nom):x.nom.slice(0,3))}</span><span class="grow"><b>${esc(mode==="prof"?civ(x):x.nom)}</b><span>${mode==="prof"?(x.tel?esc(x.tel):"pas de numéro")+" · "+fmtH(profCells(x.id).reduce((a,c)=>a+wOf(c),0)):"PP : "+esc(civ(prof(x.pp))||"—")}</span></span>
+    <button class="btn" data-act="shOne" data-k="${mode}" data-v="${x.id}">Envoyer</button></div>`).join("")||`<div class="empty">Rien à partager pour l'instant.</div>`}</div></section>`}
+
+/* ---------- 2. Absences et remplacements ---------- */
+function freeProfsAt(k,exceptPid,date){const busy=new Set();for(const c of S.classes)for(const v of itemsAt(c.id,k)) if(v.p) busy.add(v.p);
+  const absent=new Set((S.absences||[]).filter(a=>a.date===date).map(a=>a.pid));
+  for(const a of (S.absences||[]).filter(a=>a.date===date))for(const r of Object.values(a.rempl||{}))if(r.k===k&&r.pid)busy.add(r.pid);
+  return S.profs.filter(p=>p.id!==exceptPid&&!busy.has(p.id)&&!absent.has(p.id)&&!p.indispo[k])}
+function absLessons(pid,date){const d=isoDay(date);if(d<0)return [];return profCells(pid).filter(x=>+x.k.split("-")[0]===d).sort((a,b)=>+a.k.split("-")[1]-+b.k.split("-")[1])}
+function vAbsences(){const A=S.absences||[];const draft=UI.absDraft;
+  return `<section class="card"><h2>${OUT_T.absences}</h2><p class="muted small" style="margin:0">Indiquez le professeur absent et la date : HorairePro liste ses cours et propose, pour chaque heure, les professeurs libres (même matière d'abord).</p>
+  <div class="grid2"><label class="f">Professeur absent<select id="ab-prof">${S.profs.map(p=>`<option value="${p.id}" ${draft?.pid===p.id?"selected":""}>${esc(p.nom)}</option>`).join("")}</select></label>
+  <label class="f">Date<input id="ab-date" type="date" value="${draft?.date||todayIso()}"></label></div>
+  <label class="f">Motif (facultatif)<input id="ab-motif" value="${esc(draft?.motif||"")}" placeholder="ex : maladie, formation, convocation"></label>
+  <button class="btn primary block" data-act="abFind">Voir ses cours et les remplaçants</button></section>
+  ${draft?absDraftCard(draft):""}
+  <div class="sec-head"><h3>Journal des absences</h3><span class="small muted">${A.length}</span></div>
+  <section class="card" style="padding-block:6px">${A.length?`<div class="list">${[...A].sort((a,b)=>b.date.localeCompare(a.date)).map(a=>{const p=prof(a.pid);const n=Object.keys(a.rempl||{}).length;const ok=Object.values(a.rempl||{}).filter(r=>r.pid).length;
+    return `<div class="item" style="cursor:default"><span class="tile orange">${svg("users")}</span><span class="grow"><b>${esc(p?.nom||"?")} · ${esc(frDay(a.date))}</b><span>${n} cours · ${ok} remplacé${ok>1?"s":""}${a.motif?" · "+esc(a.motif):""}</span></span><button class="btn" data-act="abShare" data-v="${a.id}">Partager</button><button class="btn ghost" data-act="abDel" data-v="${a.id}" aria-label="Supprimer">✕</button></div>`}).join("")}</div>`:`<div class="empty">Aucune absence enregistrée.</div>`}</section>`}
+function absDraftCard(dr){const p=prof(dr.pid);const L=absLessons(dr.pid,dr.date);
+  if(isoDay(dr.date)<0) return `<section class="card"><div class="empty">Le ${esc(frDay(dr.date))} n'est pas un jour de cours.</div></section>`;
+  if(!L.length) return `<section class="card"><div class="empty">${esc(p.nom)} n'a pas cours le ${esc(frDay(dr.date))}.</div></section>`;
+  return `<section class="card"><h3>${esc(civ(p))} · ${esc(frDay(dr.date))}</h3><div class="list">${L.map(x=>{const m=mat(x.m),c=cls(x.c);const fr=freeProfsAt(x.k,dr.pid,dr.date).sort((a,b)=>(b.mats.includes(x.m)-a.mats.includes(x.m))||(profCells(a.id).length-profCells(b.id).length));
+    const cur=dr.rempl[x.k]||{};const [,s]=x.k.split("-").map(Number);
+    return `<div class="item" style="cursor:default;flex-wrap:wrap"><span class="mat" style="${hcode(m.h)}">${esc(m.code)}</span><span class="grow"><b>${S.creneaux[s].debut}–${S.creneaux[s].fin} · ${esc(c.nom)}</b><span>${esc(salleNom(x.r)||"")}</span></span>
+    <select class="in" style="flex:1 1 100%" id="ab-r-${x.k}" data-act="abPick" data-k="${x.k}">
+      <option value="" ${!cur.pid&&!cur.t?"selected":""}>— À décider —</option><option value="perm" ${cur.t==="perm"?"selected":""}>Permanence / étude surveillée</option><option value="ratt" ${cur.t==="ratt"?"selected":""}>Cours rattrapé plus tard</option>
+      ${fr.length?`<optgroup label="Professeurs libres à cette heure">${fr.map(q=>`<option value="${q.id}" ${cur.pid===q.id?"selected":""}>${esc(q.nom)}${q.mats.includes(x.m)?" ★ même matière":" ("+q.mats.map(z=>mat(z)?.code).join(", ")+")"}</option>`).join("")}</optgroup>`:""}</select></div>`}).join("")}</div>
+  <span class="small muted">★ = professeur de la même matière, libre à cette heure. Les heures faites en remplacement comptent dans l'état des heures supplémentaires.</span>
+  <div class="row"><button class="btn grow" data-act="abCancel">Annuler</button><button class="btn primary grow" data-act="abSave">Enregistrer l'absence</button></div></section>`}
+function absText(a){const p=prof(a.pid);const L=absLessons(a.pid,a.date);
+  return "*Absence de "+civ(p)+"* — "+frDay(a.date)+(a.motif?" ("+a.motif+")":"")+"\n"+L.map(x=>{const [,s]=x.k.split("-").map(Number);const r=a.rempl[x.k]||{};
+    return "• "+S.creneaux[s].debut+"–"+S.creneaux[s].fin+" "+cls(x.c)?.nom+" "+(mat(x.m)?.code||"")+" ("+(salleNom(x.r)||"")+") → "+(r.pid?"remplacé par "+civ(prof(r.pid)):r.t==="perm"?"permanence":r.t==="ratt"?"cours rattrapé plus tard":"à décider")}).join("\n")+"\n\n"+(S.etab.etudesTitre||"Le Directeur des études")}
+
+/* ---------- 3. Devoirs et compositions ---------- */
+const EXAM_DUR={MATH:3,FR:3,PHILO:4,PC:2,SVT:2,HG:2,ANG:2,LV2:2,EDHC:0,TICE:0,AP:0,EPS:0};
+function vDevoirs(){const X=S.exam=S.exam||{nom:"Devoirs de niveau — 1er trimestre",levels:[],dates:[],matin:"07H30",soir:"14H30",plan:null};
+  const levels=NIV.filter(n=>S.classes.some(c=>c.niveau===n.id));
+  return `<section class="card"><h2>${OUT_T.devoirs}</h2><p class="muted small" style="margin:0">Choisissez les niveaux et les jours : HorairePro fait le calendrier (une épreuve à la fois par niveau), met chaque classe dans sa salle et désigne les surveillants (jamais le professeur de la matière, chacun à son tour).</p>
+  <label class="f">Nom de la session<input id="ex-nom" value="${esc(X.nom)}"></label>
+  <div class="f" style="display:flex;flex-direction:column;gap:6px;font-size:12.5px;font-weight:600;color:var(--muted)">Niveaux concernés<div class="chips">${levels.map(n=>`<button class="cchip ${X.levels.includes(n.id)?"on":""}" data-act="exLvl" data-v="${n.id}">${esc(n.l)}</button>`).join("")||"Ajoutez d'abord des classes."}</div></div>
+  <div class="grid2"><label class="f">Ajouter un jour<input id="ex-day" type="date"></label><label class="f">&nbsp;<button class="btn" data-act="exAddDay">+ Ajouter ce jour</button></label></div>
+  <div class="chips">${X.dates.map(d=>`<button class="cchip on" data-act="exDelDay" data-v="${d}">${esc(frDay(d))} ✕</button>`).join("")||`<span class="small muted">Aucun jour choisi.</span>`}</div>
+  <div class="grid2"><label class="f">Début le matin<input id="ex-m" value="${esc(X.matin)}"></label><label class="f">Début l'après-midi<input id="ex-s" value="${esc(X.soir)}"></label></div>
+  <span class="small muted">Épreuves : Maths et Français 3 h, Philosophie 4 h, les autres matières 2 h. Pas d'épreuve d'EPS, d'EDHC, de TICE ni de Dessin.</span>
+  <button class="btn primary big block" data-act="exGen">Créer le calendrier</button></section>
+  ${X.plan?examPlanCard(X):""}`}
+function makeExamPlan(X){const sit=[];X.dates.sort().forEach(d=>{sit.push({d,h:X.matin});sit.push({d,h:X.soir})});
+  const out=[];const warn=[];const load={};S.profs.forEach(p=>load[p.id]=0);
+  for(const nid of X.levels){const subs=Object.entries(S.grille[nid]||{}).filter(([m,h])=>+h>0&&(EXAM_DUR[m]??2)>0).map(([m])=>m).sort((a,b)=>(EXAM_DUR[b]??2)-(EXAM_DUR[a]??2));
+    if(subs.length>sit.length) warn.push(nnL(nid)+" : "+subs.length+" épreuves pour "+sit.length+" demi-journées. Ajoutez des jours.");
+    subs.forEach((m,i)=>{if(i<sit.length) out.push({si:i,niv:nid,m,dur:EXAM_DUR[m]??2})})}
+  // surveillants : par classe et par demi-journée, un prof libre (pas de la matière), répartition équitable
+  for(const ex of out){ex.cl=S.classes.filter(c=>c.niveau===ex.niv).map(c=>{const used=new Set(out.filter(o=>o.si===ex.si&&o.cl).flatMap(o=>o.cl.map(x=>x.sv)));
+    const cands=S.profs.filter(p=>!p.mats.includes(ex.m)&&!used.has(p.id)).sort((a,b)=>load[a.id]-load[b.id]);const sv=cands[0]?.id||null;if(sv)load[sv]+=ex.dur;
+    return {c:c.id,salle:c.salle,sv}})}
+  return {sit,out,warn,load}}
+const nnL=id=>(NIV.find(n=>n.id===id)||{l:id}).l;
+function examPlanCard(X){const P=X.plan;
+  return `<section class="card"><div class="sec-title"><h3>${esc(X.nom)}</h3><button class="btn" data-act="exPdf">PDF</button></div>
+  ${P.warn.map(w=>`<div class="banner"><span>${esc(w)}</span></div>`).join("")}
+  ${P.sit.map((st,i)=>{const ex=P.out.filter(o=>o.si===i);if(!ex.length)return "";return `<div class="lvl"><div class="lvl-h"><b>${esc(frDay(st.d))} · ${esc(st.h)}</b></div>
+    ${ex.map(e=>`<div class="small"><span class="mat" style="${hcode(mat(e.m)?.h||0)}">${esc(mat(e.m)?.code)}</span> <b>${esc(nnL(e.niv))}</b> · ${fmtH(e.dur)} (${esc(st.h)}–${esc(addMin(st.h,e.dur*60))})<br><span class="muted">${e.cl.map(x=>esc(cls(x.c)?.nom)+" en "+esc(salleNom(x.salle)||"?")+" — surveillant : "+esc(shortName(prof(x.sv)?.nom)||"à désigner")).join(" · ")}</span></div>`).join("")}</div>`}).join("")}
+  <span class="small muted">Surveillances : ${Object.entries(P.load).filter(([,h])=>h).sort((a,b)=>b[1]-a[1]).map(([pid,h])=>esc(shortName(prof(pid)?.nom))+" "+fmtH(h)).join(" · ")||"—"}</span></section>`}
+function examPdf(X){const doc=new window.jspdf.jsPDF({unit:"mm",format:"a4"});const e=S.etab;const P=X.plan;
+  doc.setFont("helvetica","bold");doc.setFontSize(9);doc.text(pdfTxt((e.nom||"").toUpperCase()),14,14);doc.setFont("helvetica","normal");doc.setFontSize(8);doc.text(pdfTxt("Année scolaire "+e.annee),14,18);
+  doc.setFont("helvetica","bold");doc.setFontSize(13);doc.setTextColor(15,122,78);doc.text(pdfTxt(X.nom.toUpperCase()),105,28,{align:"center"});doc.setTextColor(20);
+  const body=[];P.sit.forEach((st,i)=>P.out.filter(o=>o.si===i).forEach(ex=>ex.cl.forEach((x,j)=>body.push([j?"":pdfTxt(frDay(st.d)),j?"":st.h+"-"+addMin(st.h,ex.dur*60),pdfTxt(nnL(ex.niv)),pdfTxt(mat(ex.m)?.nom||ex.m),pdfTxt(cls(x.c)?.nom||""),pdfTxt(salleNom(x.salle)||""),pdfTxt(civ(prof(x.sv))||"à désigner")]))));
+  doc.autoTable({startY:34,head:[["Jour","Heure","Niveau","Épreuve","Classe","Salle","Surveillant"]],body,theme:"grid",styles:{fontSize:7.5,cellPadding:1.4,textColor:20},headStyles:{fillColor:[15,122,78],textColor:255}});
+  let y=doc.lastAutoTable.finalY+10;doc.setFont("helvetica","bold");doc.setFontSize(9);doc.text(pdfTxt(e.etudesTitre||"LE DIRECTEUR DES ÉTUDES"),196,y,{align:"right"});
+  return doc}
+
+/* ---------- 4. Heures supplémentaires du mois ---------- */
+function hsupRows(year,month,weeks){const inMonth=a=>{const d=new Date(a.date+"T00:00:00");return d.getFullYear()===year&&d.getMonth()===month};
+  const abs=(S.absences||[]).filter(inMonth);
+  return S.profs.map(p=>{const hw=profCells(p.id).reduce((a,x)=>a+wOf(x),0);const du=+p.du||0;
+    let absH=0,remH=0;for(const a of abs){if(a.pid===p.id)absH+=absLessons(p.id,a.date).reduce((s,x)=>s+wOf(x),0);for(const [k,r] of Object.entries(a.rempl||{}))if(r.pid===p.id){const x=absLessons(a.pid,a.date).find(z=>z.k===k);remH+=x?wOf(x):1}}
+    const done=hw*weeks-absH+remH;const sup=Math.max(0,done-du*weeks);return {p,hw,du,absH,remH,done,sup,supW:Math.max(0,hw-du)}})}
+function vHsup(){const d=new Date();const Y=UI.hsY??d.getFullYear(),Mo=UI.hsM??d.getMonth(),Wk=UI.hsW??4;const rows=hsupRows(Y,Mo,Wk);const tot=rows.reduce((a,r)=>a+r.sup,0);
+  return `<section class="card"><h2>${OUT_T.hsup}</h2><p class="muted small" style="margin:0">Heures faites = heures de l'emploi du temps × semaines de cours − absences + remplacements. Au-delà des heures dues, ce sont des heures supplémentaires.</p>
+  <div class="grid2"><label class="f">Mois<select id="hs-m" data-act="hsSet">${MOIS.map((m,i)=>`<option value="${i}" ${i===Mo?"selected":""}>${m}</option>`).join("")}</select></label>
+  <label class="f">Année<input id="hs-y" type="number" data-act="hsSet" value="${Y}"></label><label class="f">Semaines de cours<input id="hs-w" type="number" min="1" max="5" data-act="hsSet" value="${Wk}"></label></div>
+  <div class="row"><button class="btn primary" data-act="hsPdf">PDF</button><button class="btn" data-act="hsCsv">Excel (CSV)</button><span class="small muted grow" style="text-align:right">Total du mois : <b>${fmtH(tot)}</b></span></div></section>
+  <section class="card"><div class="scroll"><table class="rec"><thead><tr><th>Professeur</th><th>Statut</th><th>H/sem.</th><th>Dues/sem.</th><th>Absences</th><th>Rempl.</th><th>Faites</th><th>H. sup.</th></tr></thead>
+  <tbody>${rows.map(r=>`<tr><td>${esc(r.p.nom)}</td><td>${r.p.statut==="VACATAIRE"?"Vac.":"Perm."}</td><td class="n">${fmtH(r.hw)}</td><td class="n">${fmtH(r.du)}</td><td class="n">${r.absH?"−"+fmtH(r.absH):"—"}</td><td class="n">${r.remH?"+"+fmtH(r.remH):"—"}</td><td class="n">${fmtH(r.done)}</td><td class="n"><b>${r.sup?fmtH(r.sup):"—"}</b></td></tr>`).join("")}</tbody></table></div></section>`}
+function hsupPdf(Y,Mo,Wk){const doc=new window.jspdf.jsPDF({unit:"mm",format:"a4"});const e=S.etab;const rows=hsupRows(Y,Mo,Wk);
+  doc.setFont("helvetica","bold");doc.setFontSize(9);doc.text(pdfTxt((e.nom||"").toUpperCase()),14,14);doc.setFont("helvetica","normal");doc.setFontSize(8);doc.text(pdfTxt("Année scolaire "+e.annee+(e.dren?"  ·  DREN "+e.dren:"")),14,18);
+  doc.setFont("helvetica","bold");doc.setFontSize(13);doc.setTextColor(15,122,78);doc.text(pdfTxt("ÉTAT DES HEURES SUPPLÉMENTAIRES — "+MOIS[Mo].toUpperCase()+" "+Y),105,28,{align:"center"});doc.setTextColor(20);
+  doc.setFont("helvetica","normal");doc.setFontSize(8);doc.text(pdfTxt(Wk+" semaines de cours"),105,33,{align:"center"});
+  doc.autoTable({startY:38,head:[["Professeur","Statut","Discipline","H/sem.","Dues/sem.","Absences","Rempl.","Faites","H. sup."]],
+    body:rows.map(r=>[pdfTxt(r.p.nom),r.p.statut,r.p.mats.map(m=>mat(m)?.code).join(", "),fmtH(r.hw),fmtH(r.du),r.absH?"-"+fmtH(r.absH):"-",r.remH?"+"+fmtH(r.remH):"-",fmtH(r.done),r.sup?fmtH(r.sup):"-"]),
+    foot:[["TOTAL","","","","","","","",fmtH(rows.reduce((a,r)=>a+r.sup,0))]],theme:"grid",styles:{fontSize:7.5,cellPadding:1.4,textColor:20},headStyles:{fillColor:[15,122,78],textColor:255},footStyles:{fillColor:[226,243,234],textColor:20,fontStyle:"bold"}});
+  const y=doc.lastAutoTable.finalY+12;doc.setFont("helvetica","bold");doc.text(pdfTxt(e.etudesTitre||"LE DIRECTEUR DES ÉTUDES"),196,y,{align:"right"});if(e.etudesNom){doc.setFont("helvetica","normal");doc.text(pdfTxt(e.etudesNom),196,y+18,{align:"right"})}
+  return doc}
+
+/* ---------- 5. Statistiques ---------- */
+function vStats(){const N=nS();let open=0;for(let d=0;d<5;d++)for(let s=0;s<N;s++) if(!isOff(d,s)) open++;
+  const profs=S.profs.map(p=>({p,h:profCells(p.id).reduce((a,x)=>a+wOf(x),0)})).sort((a,b)=>b.h-a.h);const maxH=Math.max(1,...profs.map(x=>x.h));
+  const use={};for(const c of S.classes)for(const v of Object.values(S.sched[c.id]||{})) if(v.r) use[v.r]=(use[v.r]||0)+W(v);
+  const rooms=S.salles.map(r=>({r,h:use[r.id]||0,pct:Math.round((use[r.id]||0)/open*100)})).sort((a,b)=>b.pct-a.pct);
+  const unass={};for(const c of S.classes)for(const v of Object.values(S.sched[c.id]||{})) if(!v.p) unass[v.m]=(unass[v.m]||0)+W(v);
+  const totH=profs.reduce((a,x)=>a+x.h,0),totSup=S.profs.reduce((a,p)=>a+Math.max(0,profCells(p.id).reduce((s,x)=>s+wOf(x),0)-(+p.du||0)),0);
+  const bar=(pct,cls2)=>`<span class="bar" style="width:100%;flex:1"><i class="${cls2||""}" style="width:${Math.min(100,pct)}%"></i></span>`;
+  return `<section class="card"><h2>${OUT_T.stats}</h2></section>
+  <div class="stats"><div class="stat"><b>${S.classes.reduce((a,c)=>a+(+c.effectif||0),0)}</b><span>élèves</span></div><div class="stat"><b>${fmtH(totH)}</b><span>heures de cours / semaine</span></div><div class="stat"><b>${fmtH(totSup)}</b><span>heures sup. / semaine</span></div><div class="stat"><b>${fmtH(Object.values(unass).reduce((a,b)=>a+b,0))}</b><span>heures à pourvoir</span></div></div>
+  ${Object.keys(unass).length?`<section class="card"><h3>Cours sans professeur</h3><div class="list">${Object.entries(unass).map(([m,h])=>`<div class="item" style="cursor:default"><span class="mat" style="${hcode(mat(m)?.h||0)}">${esc(mat(m)?.code||m)}</span><span class="grow"><b>${esc(mat(m)?.nom||m)}</b><span>${fmtH(h)} par semaine à confier</span></span></div>`).join("")}</div></section>`:""}
+  <div class="cards"><section class="card"><h3>Charge des professeurs</h3><div class="list">${profs.map(x=>`<div class="item" style="cursor:default"><span class="grow" style="flex:0 0 42%"><b>${esc(shortName(x.p.nom))}</b><span>${esc(x.p.mats.map(m=>mat(m)?.code).join(", "))}</span></span>${bar(x.h/maxH*100,x.h>(+x.p.du||0)?"":"")}<span class="small" style="width:52px;text-align:right">${fmtH(x.h)}</span></div>`).join("")}</div></section>
+  <section class="card"><h3>Occupation des salles et terrains</h3><div class="list">${rooms.map(x=>`<div class="item" style="cursor:default"><span class="grow" style="flex:0 0 42%"><b>${esc(x.r.nom)}</b><span>${esc(x.r.type)}</span></span>${bar(x.pct)}<span class="small" style="width:52px;text-align:right">${x.pct} %</span></div>`).join("")}</div><span class="small muted">Pourcentage des ${open} heures de cours de la semaine.</span></section></div>`}
+
+/* ---------- 6. Fiches de porte ---------- */
+function vPortes(){return `<section class="card"><h2>${OUT_T.portes}</h2><p class="muted small" style="margin:0">Le PDF de chaque salle, labo et terrain : à imprimer et coller sur la porte. On y voit à chaque heure la classe, la matière et le professeur.</p>
+  <button class="btn primary big block" data-act="portesAll">Toutes les salles en PDF</button></section>
+  <section class="card" style="padding-block:6px"><div class="list">${S.salles.map(r=>`<div class="item" style="cursor:default"><span class="tile ${isTerrain(r)?"green":r.type==="Laboratoire"?"violet":"teal"}">${svg("school")}</span><span class="grow"><b>${esc(r.nom)}</b><span>${esc(r.type)}</span></span><button class="btn" data-act="porteOne" data-v="${r.id}">PDF</button></div>`).join("")||`<div class="empty">Ajoutez d'abord vos salles.</div>`}</div></section>`}
+
+/* ---------- 7. Import rapide ---------- */
+function guessNiv(nom){const n=strip(String(nom)).toLowerCase().replace(/\s+/g,"");
+  if(/^6/.test(n))return "6e";if(/^5/.test(n))return "5e";if(/^4/.test(n))return "4e";if(/^3/.test(n))return "3e";
+  const ser=n.match(/(a|c|d)\d*$/);const s=ser?ser[1].toUpperCase():"";
+  if(/^(2|2nde|seconde)/.test(n))return s==="C"?"2ndeC":"2ndeA";if(/^(1|1ere|1re|premiere)/.test(n))return "1re"+(s||"D");if(/^(t|tle|term)/.test(n))return "Tle"+(s||"D");return ""}
+function guessMat(t){const x=strip(String(t)).toUpperCase().replace(/[^A-Z]/g,"");const map={FRANCAIS:"FR",FR:"FR",ANGLAIS:"ANG",ANG:"ANG",MATHS:"MATH",MATH:"MATH",MATHEMATIQUES:"MATH",PC:"PC",PHYSIQUECHIMIE:"PC",PHYSIQUE:"PC",SVT:"SVT",HG:"HG",HISTOIREGEOGRAPHIE:"HG",HISTOGEO:"HG",EDHC:"EDHC",EPS:"EPS",ESPAGNOL:"LV2",ALLEMAND:"LV2",LV:"LV2",PHILO:"PHILO",PHILOSOPHIE:"PHILO",TICE:"TICE",INFORMATIQUE:"TICE",DESSIN:"AP",MUSIQUE:"AP",AP:"AP",ARTSPLASTIQUES:"AP"};
+  return map[x]||S.matieres.find(m=>strip(m.code).toUpperCase()===x||strip(m.nom).toUpperCase().replace(/[^A-Z]/g,"")===x)?.id||""}
+function parseImport(kind,text){const lines=String(text).split(/\r?\n/).map(l=>l.trim()).filter(Boolean);const out=[],bad=[];
+  for(const l of lines){const f=l.split(/\t|;|,(?=\s*[^\s])/).map(x=>x.trim());if(/^(nom|classe|name)\b/i.test(f[0]))continue;
+    if(kind==="classes"){const niv=guessNiv(f[0]);if(!f[0]||!niv){bad.push(l);continue}out.push({nom:f[0],niveau:niv,effectif:+String(f[1]||"").replace(/\D/g,"")||0})}
+    else{const mats=String(f[1]||"").split(/[\/+&]| et /i).map(guessMat).filter(Boolean);if(!f[0]||!mats.length){bad.push(l);continue}
+      const sx=/^f/i.test(f[2]||"")?"F":"M";const st=/vac/i.test(f.join(" "))?"VACATAIRE":"PERMANENT";const tel=(f.find((x,i)=>i>=2&&/\d{8,}/.test(x.replace(/\s/g,"")))||"");
+      out.push({nom:f[0],mats:[...new Set(mats)],sexe:sx,statut:st,tel})}}
+  return {out,bad}}
+function vImport(){const kind=UI.impKind||"classes";const ex=kind==="classes"?"6è1 ; 62\n6è2 ; 60\n2nde C ; 48\nTle D2 ; 45":"KOUAMÉ Ange ; PC ; M ; 07 00 00 00 00\nTRAORÉ Awa ; SVT ; F ; 05 00 00 00 00 ; vacataire\nKONÉ Ali ; Maths";
+  const prev=UI.impPrev;
+  return `<section class="card"><h2>${OUT_T.import}</h2><div class="seg"><button data-act="impKind" data-v="classes" aria-pressed="${kind==="classes"}">Classes</button><button data-act="impKind" data-v="profs" aria-pressed="${kind==="profs"}">Professeurs</button></div>
+  <p class="muted small" style="margin:0">${kind==="classes"?"Une classe par ligne : <b>nom ; effectif</b>. Le niveau est reconnu tout seul (6è, 5è, 4è, 3è, 2nde A/C, 1ère A/C/D, Tle A/C/D).":"Un professeur par ligne : <b>nom et prénoms ; matière(s) ; sexe ; téléphone</b>. Ajoutez « vacataire » si besoin. Plusieurs matières : PC/SVT."} Vous pouvez aussi copier les colonnes depuis Excel et les coller ici.</p>
+  <label class="f">Liste<textarea id="imp-txt" rows="7" placeholder="${esc(ex)}">${esc(UI.impTxt||"")}</textarea></label>
+  <div class="row"><button class="btn" data-act="impFile">Choisir un fichier CSV</button><button class="btn primary grow" data-act="impCheck">Vérifier</button></div>
+  <span class="small muted">Depuis Excel : Fichier → Enregistrer sous → CSV, puis choisissez le fichier ici.</span></section>
+  ${prev?`<section class="card"><h3>${prev.out.length} ${kind==="classes"?"classe(s)":"professeur(s)"} prêt(s)</h3><div class="list">${prev.out.map(o=>`<div class="item" style="cursor:default"><span class="grow"><b>${esc(o.nom)}</b><span>${kind==="classes"?esc(nnL(o.niveau))+(o.effectif?" · "+o.effectif+" élèves":""):esc(o.mats.map(m=>mat(m)?.code).join(", "))+" · "+o.sexe+" · "+(o.statut==="VACATAIRE"?"vacataire":"permanent")+(o.tel?" · "+esc(o.tel):"")}</span></span></div>`).join("")}</div>
+   ${prev.bad.length?`<div class="banner"><span><b>${prev.bad.length} ligne(s) non reconnue(s) :</b> ${prev.bad.map(esc).join(" | ")}</span></div>`:""}
+   <button class="btn primary block" data-act="impDo" ${prev.out.length?"":"disabled"}>Ajouter à l'établissement</button></section>`:""}`}
+
+/* ---------- événements des outils ---------- */
+async function outilsClick(a,t,v){
+  switch(a){
+    case "outil": UI.outil=v||null;render();scrollTo(0,0);return true;
+    case "shMode": UI.shMode=v;render();return true;
+    case "shOne": shareEdt(t.dataset.k,v);return true;
+    case "shDl": makePDF(t.dataset.k,[v],"EDT_"+(t.dataset.k==="prof"?prof(v).nom:cls(v).nom)+".pdf");return true;
+    case "copyTxt": try{await navigator.clipboard.writeText(v);toast("Lien copié")}catch(e){toast("Sélectionnez le lien puis copiez-le.")}return true;
+    case "abFind":{const pid=document.getElementById("ab-prof").value,date=document.getElementById("ab-date").value;if(!date){toast("Choisissez la date");return true}
+      const ex=(S.absences||[]).find(x=>x.pid===pid&&x.date===date);UI.absDraft=ex?JSON.parse(JSON.stringify(ex)):{id:uid(),pid,date,motif:document.getElementById("ab-motif").value.trim(),rempl:{}};render();return true}
+    case "abCancel": UI.absDraft=null;render();return true;
+    case "abSave":{const d=UI.absDraft;d.motif=document.getElementById("ab-motif")?.value.trim()||d.motif;S.absences=(S.absences||[]).filter(x=>x.id!==d.id);
+      for(const x of absLessons(d.pid,d.date)) if(!d.rempl[x.k]) d.rempl[x.k]={};S.absences.push(d);UI.absDraft=null;save();render();toast("Absence enregistrée");return true}
+    case "abDel": S.absences=(S.absences||[]).filter(x=>x.id!==v);save();render();toast("Absence supprimée");return true;
+    case "abShare":{const ab=S.absences.find(x=>x.id===v);const txt=absText(ab);
+      if(navigator.share){try{await navigator.share({text:txt});return true}catch(e){if(e.name==="AbortError")return true}}
+      openSheet(`<h3>Partager l'absence</h3><textarea class="in" rows="10" readonly>${esc(txt)}</textarea><a class="btn block" style="background:#1FA855;color:#fff" href="https://wa.me/?text=${encodeURIComponent(txt)}" target="_blank" rel="noopener">Ouvrir WhatsApp</a><button class="btn" data-act="copyTxt" data-v="${esc(txt)}">Copier le texte</button><button class="btn ghost" data-act="close">Fermer</button>`);return true}
+    case "exLvl":{const X=S.exam;X.levels=X.levels.includes(v)?X.levels.filter(x=>x!==v):[...X.levels,v];X.plan=null;save();render();return true}
+    case "exAddDay":{const d=document.getElementById("ex-day").value;if(!d){toast("Choisissez un jour");return true}if(isoDay(d)<0){toast("Choisissez un jour du lundi au vendredi");return true}
+      if(!S.exam.dates.includes(d))S.exam.dates.push(d);S.exam.plan=null;save();render();return true}
+    case "exDelDay": S.exam.dates=S.exam.dates.filter(x=>x!==v);S.exam.plan=null;save();render();return true;
+    case "exGen":{const X=S.exam;X.nom=document.getElementById("ex-nom").value.trim()||X.nom;X.matin=document.getElementById("ex-m").value.trim().toUpperCase().replace(":","H")||"07H30";X.soir=document.getElementById("ex-s").value.trim().toUpperCase().replace(":","H")||"14H30";
+      if(!X.levels.length){toast("Choisissez au moins un niveau");return true}if(!X.dates.length){toast("Ajoutez au moins un jour");return true}X.plan=makeExamPlan(X);save();render();toast("Calendrier créé");return true}
+    case "exPdf": if(!guard())return true;await saveFile("Calendrier_"+S.exam.nom+".pdf",examPdf(S.exam).output("arraybuffer"),"application/pdf");return true;
+    case "hsPdf":{if(!guard())return true;const d=new Date();const Y=UI.hsY??d.getFullYear(),Mo=UI.hsM??d.getMonth(),Wk=UI.hsW??4;await saveFile("Heures_sup_"+MOIS[Mo]+"_"+Y+".pdf",hsupPdf(Y,Mo,Wk).output("arraybuffer"),"application/pdf");return true}
+    case "hsCsv":{const d=new Date();const Y=UI.hsY??d.getFullYear(),Mo=UI.hsM??d.getMonth(),Wk=UI.hsW??4;const rows=hsupRows(Y,Mo,Wk);
+      const csv="﻿Professeur;Statut;Discipline;Heures/semaine;Dues/semaine;Absences;Remplacements;Heures faites;Heures sup\n"+rows.map(r=>[r.p.nom,r.p.statut,r.p.mats.map(m=>mat(m)?.code).join("/"),r.hw,r.du,r.absH,r.remH,r.done,r.sup].map(x=>String(x).replace(".",",")).join(";")).join("\n");
+      await saveFile("Heures_sup_"+MOIS[Mo]+"_"+Y+".csv",csv,"text/csv");return true}
+    case "porteOne": if(!guard())return true;makePDF("salle",[v],"Porte_"+salleNom(v)+".pdf");return true;
+    case "portesAll": if(!guard())return true;makePDF("salle",S.salles.map(r=>r.id),"Fiches_de_porte.pdf");return true;
+    case "impKind": UI.impKind=v;UI.impPrev=null;render();return true;
+    case "impCheck":{UI.impTxt=document.getElementById("imp-txt").value;UI.impPrev=parseImport(UI.impKind||"classes",UI.impTxt);render();return true}
+    case "impFile":{const i=document.createElement("input");i.type="file";i.accept=".csv,.txt,text/csv,text/plain";i.onchange=()=>{const f=i.files[0];if(!f)return;const r=new FileReader();r.onload=()=>{UI.impTxt=String(r.result);UI.impPrev=parseImport(UI.impKind||"classes",UI.impTxt);render()};r.readAsText(f)};i.click();return true}
+    case "impDo":{const P=UI.impPrev;if((UI.impKind||"classes")==="classes"){P.out.forEach(o=>{if(!S.classes.find(c=>c.nom.toLowerCase()===o.nom.toLowerCase()))S.classes.push({id:uid(),...o,pp:null,salle:""})})}
+      else P.out.forEach(o=>{if(!S.profs.find(p=>p.nom.toLowerCase()===o.nom.toLowerCase()))S.profs.push({id:uid(),...o,diplome:"Licence",max:24,maxAuto:true,du:o.statut==="VACATAIRE"?0:18,indispo:{},matricule:"",origine:""})});
+      S.exemple=false;const n=P.out.length;UI.impPrev=null;UI.impTxt="";save();render();toast(n+" ajouté(s). Pensez aux salles et aux affectations.");return true}
+  }
+  return false}
+function outilsChange(a,t){
+  if(a==="abPick"){const k=t.dataset.k,v=t.value;UI.absDraft.rempl[k]=v==="perm"||v==="ratt"?{t:v,k}:v?{pid:v,k}:{k};return true}
+  if(a==="hsSet"){UI.hsM=+document.getElementById("hs-m").value;UI.hsY=+document.getElementById("hs-y").value;UI.hsW=Math.max(1,+document.getElementById("hs-w").value||4);render();return true}
+  return false}
+
 /* ===================== Mise en page mobile / ordinateur ===================== */
 const LAYKEY="horairepro-affichage";
 try{UI.layPref=localStorage.getItem(LAYKEY)||"auto"}catch(e){UI.layPref="auto"}
@@ -1514,6 +1798,7 @@ mq.addEventListener?.("change",()=>{if(applyLayout()&&S) render()});
   const loc=loadLocal();
   if(loc){S=migrate(loc)}else{S=defaultState();UI.welcome=true}
   render();loadLicence();
+  {const q=new URLSearchParams(location.search).get("paiement");if(q){try{history.replaceState(null,"",location.pathname)}catch(e){}UI.welcome=false;setTimeout(()=>payCheck(q),300)}else setTimeout(()=>payCheck(null,true),1500)}
   if(STANDALONE&&"serviceWorker" in navigator){navigator.serviceWorker.register("sw.js").catch(()=>{})}
   addEventListener("beforeinstallprompt",ev=>{ev.preventDefault();installEvt=ev;if(UI.tab==="set")render()});
   (async()=>{

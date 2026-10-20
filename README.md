@@ -32,6 +32,18 @@ L'application s'adapte toute seule : version mobile sur téléphone, version ord
 2. Menu ⋮ → **Installer l'application** (ou « Ajouter à l'écran d'accueil »).
 3. Sur iPhone : bouton Partager → **Sur l'écran d'accueil**.
 
+## Outils
+
+- **Partager** : chaque professeur et chaque classe reçoit son emploi du temps en PDF par WhatsApp, avec un lien personnel de consultation (`prof.html`).
+- **Absences et remplacements** : profs libres proposés heure par heure, journal, message WhatsApp prêt.
+- **Devoirs et compositions** : calendrier par niveau, salles et surveillants, PDF.
+- **Heures supplémentaires** : état mensuel (absences et remplacements compris), PDF et CSV pour Excel.
+- **Statistiques**, **fiches de porte** (PDF par salle, labo, terrain) et **import rapide** (copier-coller ou CSV).
+
+## Paiement en ligne (CinetPay)
+
+Le service `api/` (Render, Node, gratuit) crée le paiement CinetPay, vérifie qu'il est accepté puis renvoie une licence signée : l'appli s'active toute seule. Variables à renseigner dans Render : `CINETPAY_APIKEY`, `CINETPAY_SITE_ID`, `LICENCE_PRIVATE_JWK`.
+
 ## Licences (abonnement annuel)
 
 - Chaque établissement a **30 jours d'essai gratuit**, toutes fonctions ouvertes.
@@ -56,7 +68,10 @@ La configuration est dans `render.yaml` (aucune compilation). Chaque envoi sur l
 | `index.html` | L'application complète |
 | `manifest.webmanifest` | Nom, icônes et couleurs pour l'installation |
 | `sw.js` | Fonctionnement hors connexion |
-| `admin.html` | Espace vendeur : clients et licences |
+| `admin.html` | Espace vendeur : clients, licences, offres |
+| `prof.html` | Consultation d'un emploi du temps en lecture seule |
+| `decouvrir.html` | Page de présentation pour vendre HorairePro |
+| `api/` | Service de paiement CinetPay |
 | `vendor/` | Bibliothèques PDF (jsPDF, jsPDF-AutoTable) |
 | `icons/` | Icônes de l'application |
 

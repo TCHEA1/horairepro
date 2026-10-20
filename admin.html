@@ -136,7 +136,10 @@ function b64uDec(t){t=t.replace(/-/g,"+").replace(/_/g,"/");while(t.length%4)t+=
 let A=null, PRIV=null, PUB=null, UI={tab:"dash",q:""};
 function load(){try{const j=localStorage.getItem(KEY);if(j)return JSON.parse(j)}catch(e){}return null}
 function save(){try{localStorage.setItem(KEY,JSON.stringify(A))}catch(e){toast("Enregistrement impossible sur cet appareil.")}}
-function fresh(){return {v:1,vault:null,prix:50000,vendeur:"",clients:[]}}
+const DEF_OFFRES=[{id:"petit",nom:"Petit établissement",max:12,prix:30000},{id:"moyen",nom:"Établissement moyen",max:25,prix:50000},{id:"grand",nom:"Grand établissement",max:0,prix:80000}];
+function fresh(){return {v:1,vault:null,prix:50000,vendeur:"",clients:[],offres:JSON.parse(JSON.stringify(DEF_OFFRES))}}
+const offres=()=>A.offres||(A.offres=JSON.parse(JSON.stringify(DEF_OFFRES)));
+const offreLbl=o=>o.nom+" · "+(o.max?"jusqu'à "+o.max+" classes":"classes illimitées");
 
 /* ---- coffre de la clé (chiffré par le code PIN) ---- */
 async function pinKey(pin,salt){const base=await crypto.subtle.importKey("raw",new TextEncoder().encode(pin),"PBKDF2",false,["deriveKey"]);
@@ -149,7 +152,7 @@ async function useKeyFile(kf){PRIV=await crypto.subtle.importKey("jwk",kf.privat
   PUB=await crypto.subtle.importKey("jwk",kf.public,{name:"ECDSA",namedCurve:"P-256"},false,["verify"]);UI.kf=kf}
 
 /* ---- licences ---- */
-async function makeCode(n,e,t){const data={v:1,n,e,i:today(),id:uid(),t};const pay=new TextEncoder().encode(JSON.stringify(data));
+async function makeCode(n,e,t,o){const data={v:1,n,e,i:today(),id:uid(),t};if(o){data.o=o.nom;data.c=o.max||0}const pay=new TextEncoder().encode(JSON.stringify(data));
   const sig=await crypto.subtle.sign({name:"ECDSA",hash:"SHA-256"},PRIV,pay);return {code:"HP-"+b64u(pay)+"."+b64u(sig),data}}
 async function checkCode(raw){const code=String(raw||"").replace(/\s+/g,"");const m=code.match(/^HP-([A-Za-z0-9_-]+)\.([A-Za-z0-9_-]+)$/);
   if(!m) return {ok:false,err:"Format incorrect : un code commence par HP-"};
@@ -210,11 +213,12 @@ function vClients(){
   <section class="card" style="padding-block:6px">${C.length?`<div class="list">${C.map(c=>{const s=status(c);const l=lastLic(c);return `<button class="item" data-act="openClient" data-v="${c.id}"><span class="av ${tone(c.nom)}">${esc(ini(c.nom))}</span><span class="grow"><b>${esc(c.nom)}</b><span>${esc([c.ville,c.contact].filter(Boolean).join(" · "))}${l?" · fin "+frDate(l.e):""}</span></span><span class="chip ${s.cls}">${s.t}</span></button>`}).join("")}</div>`
     :`<div class="empty">${A.clients.length?"Aucun résultat.":"Pas encore de client. Vendez votre première licence."}<button class="btn primary" data-act="tab" data-v="new">Nouvelle licence</button></div>`}</section>`;
 }
-function offerFields(prefix){return `<label class="f">Durée de la licence<select id="${prefix}-dur">
+function offerFields(prefix){return `<label class="f">Offre<select id="${prefix}-off">${offres().map((o,i)=>`<option value="${o.id}" ${i===1?"selected":""}>${esc(offreLbl(o))} — ${fcfa(o.prix)}</option>`).join("")}</select></label>
+  <label class="f">Durée de la licence<select id="${prefix}-dur">
   <option value="annee">Année scolaire, jusqu'au ${frDate(schoolYearEnd())}</option><option value="12m">12 mois à partir d'aujourd'hui</option>
   <option value="30j">Essai prolongé de 30 jours</option><option value="date">Date de fin personnalisée</option></select></label>
   <label class="f" id="${prefix}-datew" hidden>Date de fin<input id="${prefix}-date" type="date" value="${schoolYearEnd()}"></label>
-  <div class="grid2"><label class="f">Prix payé (FCFA)<input id="${prefix}-prix" type="number" inputmode="numeric" value="${A.prix}"></label>
+  <div class="grid2"><label class="f">Prix payé (FCFA)<input id="${prefix}-prix" type="number" inputmode="numeric" value="${offres()[1].prix}"></label>
   <label class="f">Mode de paiement<select id="${prefix}-pay">${PAY.map(p=>`<option>${p}</option>`).join("")}</select></label>
   <label class="f">Référence de la transaction<input id="${prefix}-ref" placeholder="ex : ID Orange Money"></label>
   <label class="f">Statut<select id="${prefix}-paye"><option value="1">Payé</option><option value="0">Pas encore payé</option></select></label></div>`}
@@ -224,7 +228,10 @@ function vNew(){return `<section class="card"><h3>Établissement</h3>
   <label class="f">Contact (directeur, censeur…)<input id="n-contact"></label><label class="f">Téléphone WhatsApp<input id="n-tel" inputmode="tel" placeholder="07 00 00 00 00"></label></div></section>
   <section class="card"><h3>Offre et paiement</h3>${offerFields("n")}</section>
   <button class="btn primary big block" data-act="create">Créer la licence</button>`}
-function vSet(){return `<section class="card"><h3>Ventes</h3><div class="grid2"><label class="f">Prix par défaut d'une licence annuelle (FCFA)<input id="s-prix" type="number" inputmode="numeric" value="${A.prix}"></label>
+function vSet(){return `<section class="card"><h3>Offres par taille d'établissement</h3><p class="small muted" style="margin:0">Le nombre de classes autorisé est inscrit dans le code : l'appli de l'école prévient si elle dépasse son offre. 0 = illimité.</p>
+  ${offres().map((o,i)=>`<div class="grid2"><label class="f">Nom de l'offre<input id="of-n-${i}" value="${esc(o.nom)}"></label><label class="f">Classes max<input id="of-m-${i}" type="number" inputmode="numeric" value="${o.max}"></label><label class="f">Prix annuel (FCFA)<input id="of-p-${i}" type="number" inputmode="numeric" value="${o.prix}"></label></div>`).join("")}
+  <button class="btn" data-act="saveOff">Enregistrer les offres</button></section>
+  <section class="card"><h3>Ventes</h3><div class="grid2"><label class="f">Prix par défaut d'une licence annuelle (FCFA)<input id="s-prix" type="number" inputmode="numeric" value="${A.prix}"></label>
   <label class="f">Signature des messages<input id="s-vend" value="${esc(A.vendeur)}" placeholder="ex : Mares — HorairePro"></label></div><button class="btn" data-act="saveSet">Enregistrer</button></section>
   <section class="card"><h3>Sauvegarde des clients</h3><p class="small muted" style="margin:0">Les clients sont enregistrés sur ce téléphone. Téléchargez une sauvegarde chaque mois.</p>
   <div class="row"><button class="btn" data-act="export">Télécharger la sauvegarde</button><button class="btn" data-act="import">Restaurer</button></div></section>
@@ -233,7 +240,8 @@ function vSet(){return `<section class="card"><h3>Ventes</h3><div class="grid2">
   <section class="card"><h3>Lien de l'application</h3><div class="code">${APP_URL}</div><span class="small muted">À donner aux établissements. Ils ont 30 jours d'essai gratuit, puis il leur faut un code.</span></section>`}
 function readOffer(p){const dur=document.getElementById(p+"-dur").value;
   const e=dur==="annee"?schoolYearEnd():dur==="12m"?addDays(today(),365):dur==="30j"?addDays(today(),30):document.getElementById(p+"-date").value;
-  return {e,t:dur==="30j"?"essai":"annuel",prix:dur==="30j"?0:+document.getElementById(p+"-prix").value||0,pay:document.getElementById(p+"-pay").value,ref:document.getElementById(p+"-ref").value.trim(),paye:document.getElementById(p+"-paye").value==="1"}}
+  const off=offres().find(o=>o.id===document.getElementById(p+"-off").value)||offres()[1];
+  return {e,off:{nom:off.nom,max:off.max},t:dur==="30j"?"essai":"annuel",prix:dur==="30j"?0:+document.getElementById(p+"-prix").value||0,pay:document.getElementById(p+"-pay").value,ref:document.getElementById(p+"-ref").value.trim(),paye:document.getElementById(p+"-paye").value==="1"}}
 function showCode(c,l){openSheet(`<h3>Licence créée</h3><p class="small muted" style="margin:0">${esc(c.nom)} · valable jusqu'au <b>${frDate(l.e)}</b></p>
   <div class="code" id="thecode">${esc(l.code)}</div>
   <button class="btn primary block" data-act="copy" data-v="${esc(l.code)}">Copier le code</button>
@@ -246,11 +254,12 @@ function clientSheet(id){const c=A.clients.find(x=>x.id===id);const s=status(c);
   <button class="btn" data-act="saveClient" data-v="${c.id}">Enregistrer les coordonnées</button>
   ${l?`<div class="row"><button class="btn primary grow" data-act="copy" data-v="${esc(l.code)}">Copier le dernier code</button>${c.tel?`<a class="btn wa grow" href="${waUrl(c.tel,waMsg(c,l))}" target="_blank" rel="noopener">Renvoyer sur WhatsApp</a>`:""}</div>`:""}
   <h3>Renouveler / prolonger</h3>${offerFields("r")}<button class="btn primary block" data-act="renew" data-v="${c.id}">Créer une nouvelle licence</button>
-  <h3>Historique</h3><div class="hist">${c.lic.slice().reverse().map(x=>`<div><span><b>${x.t==="essai"?"Essai":"Annuelle"}</b> · créée le ${frDate(x.i)} · fin ${frDate(x.e)}</span><span>${x.prix?fcfa(x.prix):"Gratuit"} · ${esc(x.pay)}${x.ref?" · "+esc(x.ref):""} · ${x.paye?"payé":"<b style='color:var(--warm)'>non payé</b>"}</span></div>`).join("")||"<span class='small muted'>Aucune licence.</span>"}</div>
+  <h3>Historique</h3><div class="hist">${c.lic.slice().reverse().map(x=>`<div><span><b>${x.t==="essai"?"Essai":"Annuelle"}${x.off?" · "+esc(x.off.nom):""}</b> · créée le ${frDate(x.i)} · fin ${frDate(x.e)}</span><span>${x.prix?fcfa(x.prix):"Gratuit"} · ${esc(x.pay)}${x.ref?" · "+esc(x.ref):""} · ${x.paye?"payé":"<b style='color:var(--warm)'>non payé</b>"}</span></div>`).join("")||"<span class='small muted'>Aucune licence.</span>"}</div>
   <div id="delzone"><button class="btn danger" data-act="askDel" data-v="${c.id}">Supprimer ce client</button></div>
   <button class="btn ghost" data-act="close">Fermer</button>`);bindDur("r")}
 function bindDur(p){const s=document.getElementById(p+"-dur");if(!s)return;const w=document.getElementById(p+"-datew");
-  const up=()=>{w.hidden=s.value!=="date";const pr=document.getElementById(p+"-prix");if(s.value==="30j")pr.value=0;else if(+pr.value===0)pr.value=A.prix};s.addEventListener("change",up)}
+  const pr=document.getElementById(p+"-prix"),of=document.getElementById(p+"-off");const price=()=>(offres().find(o=>o.id===of.value)||{}).prix||A.prix;
+  const up=()=>{w.hidden=s.value!=="date";if(s.value==="30j")pr.value=0;else pr.value=price()};s.addEventListener("change",up);of.addEventListener("change",up)}
 
 /* ---- actions ---- */
 document.addEventListener("submit",async e=>{if(e.target.id!=="pinform")return;e.preventDefault();
@@ -274,9 +283,9 @@ document.addEventListener("click",async e=>{const t=e.target.closest("[data-act]
       const o=readOffer("n");if(!o.e){toast("Choisissez une date de fin.");return}
       let c=A.clients.find(x=>x.nom.toLowerCase()===nom.toLowerCase());
       if(!c){c={id:uid(),nom,ville:document.getElementById("n-ville").value.trim(),dren:document.getElementById("n-dren").value.trim(),contact:document.getElementById("n-contact").value.trim(),tel:document.getElementById("n-tel").value.trim(),lic:[],cree:today()};A.clients.push(c)}
-      const {code,data}=await makeCode(c.nom,o.e,o.t);const l={...o,code,i:data.i,id:data.id};c.lic.push(l);save();UI.tab="clients";render();showCode(c,l);break}
+      const {code,data}=await makeCode(c.nom,o.e,o.t,o.off);const l={...o,code,i:data.i,id:data.id};c.lic.push(l);save();UI.tab="clients";render();showCode(c,l);break}
     case "renew":{const c=A.clients.find(x=>x.id===v);const o=readOffer("r");if(!o.e){toast("Choisissez une date de fin.");return}
-      const {code,data}=await makeCode(c.nom,o.e,o.t);const l={...o,code,i:data.i,id:data.id};c.lic.push(l);save();render();showCode(c,l);break}
+      const {code,data}=await makeCode(c.nom,o.e,o.t,o.off);const l={...o,code,i:data.i,id:data.id};c.lic.push(l);save();render();showCode(c,l);break}
     case "openClient":clientSheet(v);break;
     case "saveClient":{const c=A.clients.find(x=>x.id===v);c.contact=document.getElementById("c-contact").value.trim();c.tel=document.getElementById("c-tel").value.trim();
       c.ville=document.getElementById("c-ville").value.trim();c.note=document.getElementById("c-note").value.trim();save();render();clientSheet(v);toast("Coordonnées enregistrées");break}
@@ -286,11 +295,12 @@ document.addEventListener("click",async e=>{const t=e.target.closest("[data-act]
     case "check":{const r=await checkCode(document.getElementById("chk").value);const box=document.getElementById("chkres");
       if(!r.data){box.innerHTML=`<span class="chip bad">${esc(r.err)}</span>`;break}
       const left=dayDiff(today(),r.data.e);box.innerHTML=`<div class="hist"><div><span><b>${esc(r.data.n)}</b></span><span>${r.ok?"<span class='chip ok'>Signature valide</span>":"<span class='chip bad'>Signature invalide</span>"}</span></div><div><span>Créé le ${frDate(r.data.i)}</span><span>Fin : ${frDate(r.data.e)} ${left>=0?"("+left+" j)":"<b style='color:var(--danger)'>expiré</b>"}</span></div></div>`;break}
+    case "saveOff":offres().forEach((o,i)=>{o.nom=document.getElementById("of-n-"+i).value.trim()||o.nom;o.max=Math.max(0,+document.getElementById("of-m-"+i).value||0);o.prix=Math.max(0,+document.getElementById("of-p-"+i).value||0)});save();toast("Offres enregistrées");break;
     case "saveSet":A.prix=+document.getElementById("s-prix").value||0;A.vendeur=document.getElementById("s-vend").value.trim();save();toast("Réglages enregistrés");break;
-    case "export":download("horairepro-clients-"+today()+".json",JSON.stringify({app:"HorairePro-admin",clients:A.clients,prix:A.prix,vendeur:A.vendeur}));toast("Sauvegarde téléchargée");break;
+    case "export":download("horairepro-clients-"+today()+".json",JSON.stringify({app:"HorairePro-admin",clients:A.clients,prix:A.prix,vendeur:A.vendeur,offres:A.offres}));toast("Sauvegarde téléchargée");break;
     case "import":{const i=document.createElement("input");i.type="file";i.accept=".json,application/json";i.onchange=()=>{const f=i.files[0];if(!f)return;const r=new FileReader();
       r.onload=()=>{try{const d=JSON.parse(r.result);if(!Array.isArray(d.clients))throw 0;const ids=new Set(A.clients.map(c=>c.id));d.clients.forEach(c=>{if(!ids.has(c.id))A.clients.push(c)});
-        if(d.prix)A.prix=d.prix;if(d.vendeur)A.vendeur=d.vendeur;save();render();toast(d.clients.length+" client(s) restauré(s)")}catch(err){toast("Ce fichier n'est pas une sauvegarde admin.")}};r.readAsText(f)};i.click();break}
+        if(d.prix)A.prix=d.prix;if(d.vendeur)A.vendeur=d.vendeur;if(d.offres)A.offres=d.offres;save();render();toast(d.clients.length+" client(s) restauré(s)")}catch(err){toast("Ce fichier n'est pas une sauvegarde admin.")}};r.readAsText(f)};i.click();break}
     case "chgPin":openSheet(`<h3>Changer le code PIN</h3><label class="f">Nouveau PIN<input id="np1" class="pin" type="password" inputmode="numeric" maxlength="8"></label><label class="f">Confirmer<input id="np2" class="pin" type="password" inputmode="numeric" maxlength="8"></label><button class="btn primary block" data-act="doPin">Enregistrer</button><button class="btn ghost" data-act="close">Annuler</button>`);break;
     case "doPin":{const p1=document.getElementById("np1").value,p2=document.getElementById("np2").value;if(!/^\d{4,8}$/.test(p1)){toast("4 à 8 chiffres.");return}if(p1!==p2){toast("Les PIN ne correspondent pas.");return}
       A.vault=await seal(UI.kf,p1);save();closeSheet();toast("Code PIN changé");break}

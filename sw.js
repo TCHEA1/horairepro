@@ -1,8 +1,9 @@
 // HorairePro — service worker : l'application fonctionne hors connexion.
-const VERSION = "horairepro-v1.12.3";
+const VERSION = "horairepro-v2.0.0";
 const SHELL = [
   "./",
   "index.html",
+  "prof.html",
   "manifest.webmanifest",
   "vendor/jspdf.umd.min.js",
   "vendor/jspdf.plugin.autotable.min.js",
@@ -45,8 +46,8 @@ self.addEventListener("fetch", (e) => {
   // Page : réseau d'abord (pour recevoir les mises à jour), cache si hors ligne
   if (req.mode === "navigate") {
     e.respondWith(
-      fetch(req).then((res) => { const copy = res.clone(); caches.open(VERSION).then((c) => c.put("index.html", copy)); return res; })
-        .catch(() => caches.match("index.html"))
+      fetch(req).then((res) => { const copy = res.clone(); caches.open(VERSION).then((c) => c.put(url.pathname, copy)); return res; })
+        .catch(() => caches.match(url.pathname).then((hit) => hit || caches.match("index.html")))
     );
     return;
   }

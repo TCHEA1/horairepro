@@ -1,4 +1,4 @@
-# Déploiement Render : site statique HorairePro (aucun serveur, aucune compilation)
+# Déploiement Render : l'application (site statique) + le service de paiement CinetPay
 services:
   - type: web
     name: horairepro
@@ -19,3 +19,23 @@ services:
       - path: /*
         name: X-Content-Type-Options
         value: nosniff
+
+  - type: web
+    name: horairepro-api
+    runtime: node
+    plan: free
+    rootDir: api
+    buildCommand: "npm install"
+    startCommand: "node server.js"
+    healthCheckPath: /health
+    envVars:
+      - key: APP_URL
+        value: https://horairepro.onrender.com/
+      - key: API_URL
+        value: https://horairepro-api.onrender.com
+      - key: CINETPAY_APIKEY
+        sync: false
+      - key: CINETPAY_SITE_ID
+        sync: false
+      - key: LICENCE_PRIVATE_JWK
+        sync: false
