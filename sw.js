@@ -1,5 +1,5 @@
 // HorairePro — service worker : l'application fonctionne hors connexion.
-const VERSION = "horairepro-v1.5.1";
+const VERSION = "horairepro-v1.6.0";
 const SHELL = [
   "./",
   "index.html",

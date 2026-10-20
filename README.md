@@ -39,7 +39,11 @@ La clé privée (`cle-admin-horairepro.json`) ne doit **jamais** être mise sur 
 
 ## Hébergement
 
-Site statique, hébergé gratuitement avec GitHub Pages (branche `main`, dossier racine). Aucun serveur n'est nécessaire.
+Site statique hébergé sur **Render** : https://horairepro.onrender.com
+
+[![Deploy to Render](https://render.com/images/deploy-to-render-button.svg)](https://render.com/deploy?repo=https://github.com/TCHEA1/horairepro)
+
+La configuration est dans `render.yaml` (aucune compilation). Chaque envoi sur la branche `main` met le site à jour automatiquement.
 
 ## Fichiers
 
