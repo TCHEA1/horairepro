@@ -278,15 +278,16 @@ function defaultState(){
 
 function sampleState(){
   const S=defaultState(); S.exemple=true;
-  S.etab={...defaultEtab(),nom:"Collège Privé K.A.W de Touih",sigle:"KAW",type:"Collège",statut:"Privé laïc",dren:"San Pedro",code:"054 623",
-    ville:"Touih",tel:"07 49 77 25 42",tel2:"05 65 85 66 35",email:"collegeprivekaw@gmail.com"};
+  S.etab={...defaultEtab(),nom:"Collège Privé Les Bâtisseurs (exemple)",sigle:"CPB",type:"Collège et lycée",statut:"Privé laïc",dren:"Exemple-Ville",code:"000 000",
+    adresse:"Quartier Exemple, rue des Écoles",ville:"Exemple-Ville",bp:"BP 00 Exemple-Ville",tel:"07 00 00 00 00",tel2:"05 00 00 00 00",email:"contact@exemple-batisseurs.ci",
+    chefNom:"M. KOFFI Exemple",etudesNom:"Mme YAO Exemple",devise:"Bâtir l'avenir par le savoir",applic:"05/10/2026"};
   const cl=[["6è1","6e",62],["6è2","6e",60],["5è1","5e",58],["5è2","5e",57],["4è1","4e",55],["4è2","4e",54],["3è1","3e",61],["3è2","3e",59],["2nde C","2ndeC",48],["1ère D","1reD",45],["Tle D","TleD",42]];
   S.classes=cl.map(([nom,niveau,effectif])=>({id:uid(),nom,niveau,effectif,pp:null}));
   const pr=[["KONAN Aya Rose","F",["FR"]],["N'GUESSAN Brou Désiré","M",["FR"]],["YAO Affoué Clarisse","F",["FR"]],
     ["KOUASSI Yao Firmin","M",["MATH"]],["DIABATÉ Moussa","M",["MATH"]],["KOFFI Amenan Esther","F",["MATH"]],
     ["TRAORÉ Mariam","F",["ANG"]],["GNAGNE Serge","M",["ANG"]],["BAMBA Awa","F",["LV2"]],
     ["OUATTARA Lassina","M",["HG"]],["AKA Jean-Marc","M",["HG","EDHC"]],["KOUAMÉ Ange Flora","F",["SVT"]],["SORO Kolotioloma","M",["SVT"]],
-    ["TCHEA Ange Mares","M",["PC"]],["ZADI Gnahoré Patrice","M",["PC"]],["ASSI Marie-Laure","F",["EDHC"]],
+    ["BROU Kouakou Éric","M",["PC"]],["ZADI Gnahoré Patrice","M",["PC"]],["ASSI Marie-Laure","F",["EDHC"]],
     ["DOUMBIA Ibrahim","M",["EPS"]],["KOUADIO Innocent","M",["AP"],"VACATAIRE"],["LOROUGNON Pascal","M",["PHILO"],"VACATAIRE"]];
   S.profs=pr.map(([nom,sexe,mats,statut])=>({id:uid(),nom,sexe,mats,statut:statut||"PERMANENT",diplome:"Licence",tel:"",max:statut?10:24,du:statut?0:18,indispo:{}}));
   S.classes.forEach((c,i)=>{c.pp=S.profs[i%S.profs.length].id});
@@ -748,64 +749,55 @@ function cellTap(k){const cid=UI.edtId;const sc=S.sched[cid]=S.sched[cid]||{};
 /* ===================== PDF ===================== */
 function hslToRgb(h,s,l){s/=100;l/=100;const k=n=>(n+h/30)%12;const a=s*Math.min(l,1-l);const f=n=>l-a*Math.max(-1,Math.min(k(n)-3,Math.min(9-k(n),1)));return [255*f(0),255*f(8),255*f(4)].map(Math.round)}
 function pdfPage(doc,kind,id,first){
-  if(!first) doc.addPage();const e=S.etab;const W=doc.internal.pageSize.getWidth();
-  doc.setDrawColor(20);doc.setLineWidth(.4);doc.roundedRect(10,8,W-20,31,4,4);
-  doc.setFont("helvetica","bold");doc.setFontSize(7.5);
-  const min=doc.splitTextToSize(pdfTxt(e.ministere||""),72).slice(0,3);doc.text(min,14,13);
-  let ly=13+min.length*3.3+1;doc.setFont("helvetica","normal");
-  [["DREN : "+(e.dren||"-")],["Tel : "+(telLine(e)||"-")],e.code?["Code : "+e.code]:null].filter(Boolean).forEach(l=>{doc.text(pdfTxt(l[0]),14,ly);ly+=3.4});
-  if(e.logo){try{doc.addImage(e.logo,"PNG",W/2-11,10,22,22,undefined,"FAST")}catch(err){}}
-  doc.setFont("helvetica","bold");doc.text(pdfTxt("RÉPUBLIQUE DE CÔTE D'IVOIRE"),W-14,13,{align:"right"});
-  doc.setFont("helvetica","italic");doc.text("Union - Discipline - Travail",W-14,16.6,{align:"right"});
-  doc.setFont("helvetica","bold");doc.setFontSize(8.5);doc.text(pdfTxt((e.nom||"").toUpperCase()),W-14,21,{align:"right",maxWidth:78});
-  doc.setFontSize(7.5);doc.setFont("helvetica","italic");doc.text(pdfTxt("Année scolaire : "+(e.annee||"")),W-14,25,{align:"right"});
-  doc.setFont("helvetica","normal");let ry=28.6;[addrLine(e),e.email].filter(Boolean).forEach(l=>{doc.text(pdfTxt(l),W-14,ry,{align:"right",maxWidth:78});ry+=3.4});
-  doc.setFont("helvetica","bold");doc.setFontSize(13);const t=kind==="classe"?"EMPLOI DU TEMPS CLASSE":"EMPLOI DU TEMPS PROFESSEUR";
-  const tw=doc.getTextWidth(t)+10;doc.rect((W-tw)/2,42,tw,9);doc.text(t,W/2,48.5,{align:"center"});
-  doc.setFontSize(8);doc.setFont("helvetica","italic");if(e.applic) doc.text(pdfTxt("Applicable à partir du "+e.applic),W/2,54.5,{align:"center"});
-  doc.setFontSize(9.5);let y=60;
-  const N=nS();const body=[];const fills=[];
-  let lookup;
+  // A5 paysage (210 x 148 mm) : format de poche, facile à tenir en main
+  if(!first) doc.addPage();const e=S.etab;const W=doc.internal.pageSize.getWidth(),H=doc.internal.pageSize.getHeight();const M=8;
+  const ACC=[15,122,78];
+  doc.setTextColor(20);doc.setFont("helvetica","bold");doc.setFontSize(5.8);
+  const min=doc.splitTextToSize(pdfTxt(e.ministere||""),66).slice(0,2);doc.text(min,M,11);
+  doc.setFont("helvetica","normal");
+  doc.text(pdfTxt([e.dren?"DREN : "+e.dren:"",e.code?"Code : "+e.code:""].filter(Boolean).join("   ")),M,11+min.length*2.6+0.6);
+  doc.text(pdfTxt(telLine(e)?"Tél : "+telLine(e):""),M,11+min.length*2.6+3.4);
+  if(e.logo){try{doc.addImage(e.logo,"PNG",W/2-7,7,14,14,undefined,"FAST")}catch(err){}}
+  doc.setFont("helvetica","bold");doc.text(pdfTxt("RÉPUBLIQUE DE CÔTE D'IVOIRE"),W-M,11,{align:"right"});
+  doc.setFont("helvetica","italic");doc.text("Union - Discipline - Travail",W-M,13.6,{align:"right"});
+  doc.setFont("helvetica","bold");doc.setFontSize(7);doc.text(pdfTxt((e.nom||"").toUpperCase()),W-M,17,{align:"right",maxWidth:72});
+  doc.setFont("helvetica","normal");doc.setFontSize(5.8);doc.text(pdfTxt("Année scolaire "+(e.annee||"")+(e.email?"  ·  "+e.email:"")),W-M,20.4,{align:"right"});
+  doc.setDrawColor(...ACC);doc.setLineWidth(.5);doc.line(M,23.5,W-M,23.5);
+  let title,info;
   if(kind==="classe"){const c=cls(id);const pp=prof(c.pp);
-    doc.setFont("helvetica","bold");doc.text(pdfTxt("CLASSE : "+c.nom),14,y);doc.setFont("helvetica","normal");
-    doc.text(pdfTxt("Effectif : "+(c.effectif||"-")+"     Professeur principal : "+(pp?.nom||"-")+(c.salle?"     Salle : "+c.salle:"")),62,y);y+=4;
-    lookup=k=>{const v=(S.sched[id]||{})[k];if(!v)return null;const m=mat(v.m);return {t:(m?.code||"")+"\n"+shortName(prof(v.p)?.nom||""),h:m?.h}};
+    title="EMPLOI DU TEMPS  —  CLASSE DE "+c.nom;
+    info=["Effectif : "+(c.effectif||"-"),"Professeur principal : "+(pp?.nom||"-"),c.salle?"Salle : "+c.salle:"",classHours(c)+" h / semaine"].filter(Boolean).join("     ");
   }else{const p=prof(id);
-    doc.setFont("helvetica","bold");doc.text(pdfTxt("NOM ET PRÉNOMS : "+p.nom),14,y);doc.setFont("helvetica","normal");
-    doc.text(pdfTxt("Sexe : "+p.sexe+"    Discipline : "+p.mats.map(m=>mat(m)?.code).join(", ")),W-14,y,{align:"right"});y+=5;
-    doc.text(pdfTxt("Statut : "+p.statut+"    Diplôme : "+(p.diplome||"-")+"    Tél : "+(p.tel||"-")),14,y);
-    doc.text(pdfTxt("Matricule : "+(p.matricule||"-")),W-14,y,{align:"right"});y+=4;
-    if(p.origine){y+=1;doc.text(pdfTxt("Établissement d'origine : "+p.origine),14,y);y+=4}
-    const pc=Object.fromEntries(profCells(id).map(x=>[x.k,x]));
-    lookup=k=>{const v=pc[k];if(!v)return null;const m=mat(v.m);return {t:(cls(v.c)?.nom||"")+"\n"+(m?.code||""),h:m?.h}};
-  }
-  for(let s=0;s<N;s++){const bl=breakLabel(s);if(bl){body.push([{content:bl.toUpperCase(),colSpan:6,styles:{halign:"center",fontSize:7,textColor:110,fillColor:[245,245,245],cellPadding:1}}])}
-    const cr=S.creneaux[s];const row=[cr.debut+"-"+cr.fin];
-    for(let d=0;d<5;d++){const k=d+"-"+s;if(isOff(d,s)){row.push({content:"",styles:{fillColor:[230,230,230]}});continue}
-      const v=lookup(k);row.push(v?{content:v.t,styles:{fillColor:hslToRgb(v.h||0,62,90),fontStyle:"bold"}}:"")}
+    title="EMPLOI DU TEMPS  —  "+(p.sexe==="F"?"MME ":"M. ")+p.nom.toUpperCase();
+    info=["Discipline : "+p.mats.map(m=>mat(m)?.code).join(", "),"Statut : "+p.statut,"Diplôme : "+(p.diplome||"-"),p.matricule?"Matricule : "+p.matricule:"",p.tel?"Tél : "+p.tel:""].filter(Boolean).join("     ");}
+  doc.setFont("helvetica","bold");doc.setFontSize(10.5);doc.setTextColor(...ACC);doc.text(pdfTxt(title),W/2,29.5,{align:"center"});
+  doc.setTextColor(20);doc.setFont("helvetica","normal");doc.setFontSize(6.8);doc.text(pdfTxt(info),W/2,33.8,{align:"center",maxWidth:W-2*M});
+  const N=nS();const body=[];let lookup;
+  if(kind==="classe"){lookup=k=>{const v=(S.sched[id]||{})[k];if(!v)return null;const m=mat(v.m);return {t:(m?.code||"")+"\n"+shortName(prof(v.p)?.nom||""),h:m?.h}}}
+  else{const pc=Object.fromEntries(profCells(id).map(x=>[x.k,x]));lookup=k=>{const v=pc[k];if(!v)return null;const m=mat(v.m);return {t:(cls(v.c)?.nom||"")+"\n"+(m?.code||""),h:m?.h}}}
+  for(let s=0;s<N;s++){const bl=breakLabel(s);
+    if(bl) body.push([{content:pdfTxt(bl.toUpperCase()),colSpan:6,styles:{halign:"center",fontSize:5,textColor:120,fillColor:[244,247,245],cellPadding:0.5,minCellHeight:3.2}}]);
+    const cr=S.creneaux[s];const row=[cr.debut+"\n"+cr.fin];
+    for(let d=0;d<5;d++){const k=d+"-"+s;if(isOff(d,s)){row.push({content:"",styles:{fillColor:[236,239,237]}});continue}
+      const v=lookup(k);row.push(v?{content:pdfTxt(v.t),styles:{fillColor:hslToRgb(v.h||0,70,91),fontStyle:"bold"}}:"")}
     body.push(row)}
-  doc.autoTable({startY:y+2,head:[["HORAIRE",...JOURS]],body,theme:"grid",margin:{left:10,right:10},
-    styles:{fontSize:8.5,halign:"center",valign:"middle",lineColor:60,lineWidth:.2,textColor:20,minCellHeight:11},
-    headStyles:{fillColor:[255,255,255],textColor:20,fontStyle:"bold",lineWidth:.3},
-    columnStyles:{0:{cellWidth:26,fontSize:7.5,fontStyle:"normal"}}});
-  y=doc.lastAutoTable.finalY+6;
+  doc.autoTable({startY:36.5,head:[["HORAIRE",...JOURS]],body,theme:"grid",margin:{left:M,right:M,bottom:14},
+    styles:{fontSize:6.6,halign:"center",valign:"middle",lineColor:[190,200,195],lineWidth:.15,textColor:20,cellPadding:0.7,minCellHeight:8,overflow:"linebreak"},
+    headStyles:{fillColor:ACC,textColor:255,fontStyle:"bold",fontSize:6.8,minCellHeight:5.5},
+    columnStyles:{0:{cellWidth:17,fontSize:5.8,fontStyle:"normal",textColor:90}}});
+  let y=doc.lastAutoTable.finalY+3.6;doc.setFontSize(6.2);doc.setTextColor(40);
+  let sum;
   if(kind==="prof"){const p=prof(id);const {rows,total,sup,ppOf}=profRecap(p);
-    doc.setFont("helvetica","bold");doc.setFontSize(10);doc.text("TABLEAU RECAPITULATIF",W/2,y,{align:"center"});
-    const rb=rows.map(r=>{const cl=Object.values(r.cl);return [cl.map(c=>c.nom).join(" / "),String(cl.reduce((a,c)=>a+(+c.effectif||0),0)||"-"),mat(r.m)?.code||"",r.h+"H"]});
-    rb.push([{content:"TOTAL",colSpan:3,styles:{fontStyle:"bold",halign:"right"}},{content:total+"H",styles:{fontStyle:"bold"}}]);
-    rb.push([{content:"Nombre d'heures supplementaires",colSpan:3,styles:{halign:"right"}},sup+"H"]);
-    rb.push([{content:"Professeur Principal de la classe de",colSpan:3,styles:{halign:"right"}},ppOf||"-"]);
-    doc.autoTable({startY:y+3,head:[["Classes","Effectifs","Discipline","Nombre d'heures"]],body:rb,theme:"grid",margin:{left:10,right:10},
-      styles:{fontSize:8.5,lineColor:60,lineWidth:.2,textColor:20},headStyles:{fillColor:[240,240,240],textColor:20}});
-    y=doc.lastAutoTable.finalY+8;}
-  else{const c=cls(id);const rb=needOf(c).map(x=>[mat(x.m)?.nom||x.m,prof((S.aff[c.id]||{})[x.m])?.nom||"-",x.h+"H"]);
-    doc.autoTable({startY:y,head:[["Discipline","Professeur","Volume"]],body:rb,theme:"grid",margin:{left:10,right:10},
-      styles:{fontSize:8,lineColor:60,lineWidth:.2,textColor:20,cellPadding:1.2},headStyles:{fillColor:[240,240,240],textColor:20}});
-    y=doc.lastAutoTable.finalY+8;}
-  doc.setFont("helvetica","bolditalic");doc.setFontSize(9);doc.text(pdfTxt(e.devise||""),14,y);
-  doc.setFont("helvetica","bold");doc.text(pdfTxt(e.etudesTitre||"LE DIRECTEUR DES ÉTUDES"),W-14,y,{align:"right"});
-  if(e.etudesNom){doc.setFont("helvetica","normal");doc.text(pdfTxt(e.etudesNom),W-14,y+18,{align:"right"})}
-  doc.setFont("helvetica","normal");doc.setFontSize(6.5);doc.setTextColor(150);doc.text("Généré avec "+APP,W/2,doc.internal.pageSize.getHeight()-6,{align:"center"});doc.setTextColor(20);
+    sum="Récapitulatif :  "+rows.map(r=>Object.values(r.cl).map(c=>c.nom).join("/")+" ("+(mat(r.m)?.code||"")+") "+r.h+"h").join("  ·  ")+
+      "     |     Total : "+total+" h     Heures sup. : "+sup+" h"+(ppOf?"     Professeur principal : "+ppOf:"");
+  }else{const c=cls(id);sum="Disciplines :  "+needOf(c).map(x=>(mat(x.m)?.code||x.m)+" "+x.h+"h ("+(shortName(prof((S.aff[c.id]||{})[x.m])?.nom)||"-")+")").join("  ·  ")}
+  doc.setFont("helvetica","normal");const sl=doc.splitTextToSize(pdfTxt(sum),W-2*M).slice(0,3);doc.text(sl,M,y);
+  const fy=H-8;doc.setTextColor(20);
+  doc.setFont("helvetica","bolditalic");doc.setFontSize(6.8);doc.text(pdfTxt(e.devise||""),M,fy);
+  doc.setFont("helvetica","bold");doc.text(pdfTxt(e.etudesTitre||"LE DIRECTEUR DES ÉTUDES"),W-M,fy-3,{align:"right"});
+  if(e.etudesNom){doc.setFont("helvetica","normal");doc.text(pdfTxt(e.etudesNom),W-M,fy+0.5,{align:"right"})}
+  if(e.applic){doc.setFont("helvetica","normal");doc.setFontSize(5.8);doc.text(pdfTxt("Applicable à partir du "+e.applic),M,fy-3.2)}
+  doc.setFontSize(5);doc.setTextColor(160);doc.text("Généré avec "+APP,W/2,H-3.5,{align:"center"});doc.setTextColor(20);
 }
 function pdfTxt(s){return String(s??"").replace(/[’‘]/g,"'").replace(/[–—]/g,"-").replace(/[“”«»]/g,'"').replace(/œ/g,"oe").replace(/Œ/g,"OE").replace(/[^\x20-\xFF\n]/g,"")}
 function strip(s){return String(s).normalize("NFD").replace(/[̀-ͯ]/g,"")}
@@ -819,7 +811,7 @@ async function saveFile(filename,data,mime){
 }
 async function makePDF(kind,ids,filename){
   if(!window.jspdf){toast("Le module PDF n'a pas pu se charger. Vérifiez votre connexion.");return}
-  const doc=new window.jspdf.jsPDF({unit:"mm",format:"a4"});
+  const doc=new window.jspdf.jsPDF({unit:"mm",format:"a5",orientation:"landscape"});
   ids.forEach((id,i)=>pdfPage(doc,kind,id,i===0));
   await saveFile(filename,doc.output("arraybuffer"),"application/pdf");
 }
