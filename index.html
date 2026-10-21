@@ -511,7 +511,7 @@ async function activate(raw){
 function waLink(msg){return "https://wa.me/"+VENDOR.wa+"?text="+encodeURIComponent(msg)}
 function licenceBox(full){const st=licStatus();
   const head=st.mode==="licence"?`<div class="lic ok"><span class="tile solid">${svg("check")}</span><div><b>Licence active${st.data.o?" · "+esc(st.data.o):""}</b><span>${esc(st.data.n)} · jusqu'au ${frDate(st.data.e)} (${st.left} j)${+st.data.c?" · "+S.classes.length+" / "+st.data.c+" classes":""}</span></div></div>`
-    :st.mode==="essai"?`<div class="lic warn"><span class="tile orange">${svg("gen")}</span><div><b>Essai gratuit : ${st.left} jour${st.left>1?"s":""} restant${st.left>1?"s":""}</b><span>Toutes les fonctions sont ouvertes pendant l'essai.</span></div></div>`
+    :st.mode==="essai"?`<div class="lic warn"><span class="tile orange">${svg("gen")}</span><div><b>Licence non activée</b><span>Activez votre licence annuelle avec le code reçu de HorairePro.</span></div></div>`
     :`<div class="lic bad"><span class="tile pink">${svg("gen")}</span><div><b>${st.data?"Licence expirée le "+frDate(st.data.e):"Période d'essai terminée"}</b><span>La génération et les PDF sont bloqués. Vos données sont conservées.</span></div></div>`;
   const msg="Bonjour, je souhaite "+(st.mode==="licence"?"renouveler":"activer")+" la licence HorairePro pour : "+(S.etab.nom||"mon établissement")+".";
   return `${head}
@@ -793,7 +793,7 @@ const MARK=`<svg viewBox="0 0 64 64" width="46" height="46" aria-hidden="true"><
 function vWelcome(){
   const pat=[215,0,28,255,0, 0,120,0,350,190, 45,0,255,0,28, 300,215,0,120,0, 0,190,350,0,45];
   return `<div class="welcome"><div class="brand"><span class="tile solid">${svg("edt")}</span>${APP}</div>
-  <div class="wtext" style="display:flex;flex-direction:column;gap:10px"><h1>Vos emplois du temps, prêts en une minute</h1><p>Toutes les classes et tous les professeurs de l'établissement, sans aucun conflit d'horaire. <b style="color:var(--accent)">30 jours d'essai gratuit.</b></p></div>
+  <div class="wtext" style="display:flex;flex-direction:column;gap:10px"><h1>Vos emplois du temps, prêts en une minute</h1><p>Toutes les classes et tous les professeurs de l'établissement, sans aucun conflit d'horaire.</p></div>
   <div class="illus"><div class="ih"><span>6è1 · Semaine</span><span>LUN – VEN</span></div>
   <div class="ig">${pat.map(h=>h?`<i class="f" style="--h:${h}"></i>`:"<i></i>").join("")}</div>
   <div class="badge">Sans conflit<b>100 %</b></div></div>
@@ -813,7 +813,7 @@ function vHome(){
   ];
   const pct=need?Math.round(placed/need*100):0;const r=S.gen.report;
   const ls=licStatus();
-  const lb=S.exemple?"":ls.mode==="essai"?`<div class="banner"><span style="flex:1;min-width:190px"><b>Essai gratuit : ${ls.left} jour${ls.left>1?"s":""} restant${ls.left>1?"s":""}.</b> Activez votre licence annuelle pour continuer après l'essai.</span><button class="btn" data-act="goLic">Activer</button></div>`
+  const lb=S.exemple?"":ls.mode==="essai"?""
     :ls.mode==="expire"?`<div class="banner" style="background:var(--danger-soft)"><span style="flex:1;min-width:190px"><b style="color:var(--danger)">${ls.data?"Licence expirée.":"Essai terminé."}</b> La génération et les PDF sont bloqués jusqu'à l'activation.</span><button class="btn danger" data-act="goLic">Activer</button></div>`
     :ls.left<=30?`<div class="banner"><span style="flex:1;min-width:190px"><b>Licence : plus que ${ls.left} jours.</b> Elle expire le ${frDate(ls.data.e)}.</span><button class="btn" data-act="goLic">Renouveler</button></div>`:"";
   return `${lb}${conflictBanner()}
