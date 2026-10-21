@@ -397,7 +397,7 @@ function defaultState(){
   const cr=[["07H15","08H10",1],["08H10","09H05",1],["09H05","10H00",1],["10H15","11H10",2],["11H10","12H05",2],
             ["14H00","15H00",3],["15H00","16H00",3],["16H00","17H00",3],["17H00","18H00",3]].map(([debut,fin,g])=>({debut,fin,g}));
   const off={}; for(let s=5;s<9;s++) off["2-"+s]=true; // mercredi après-midi libre
-  return {v:1,gridV:4,decoup:{},absences:[],at:0,exemple:false,install:"",licence:"",salles:[],history:[],
+  return {v:1,gridV:5,decoup:{},absences:[],at:0,exemple:false,install:"",licence:"",salles:[],history:[],
     etab:defaultEtab(),
     creneaux:cr,off,matieres:mats,grille,classes:[],profs:[],aff:{},sched:{},
     gen:{bloc2:true,report:null}};
@@ -447,7 +447,7 @@ function migrate(x){const d=defaultState();for(const k in d) if(x[k]===undefined
   if(!x.gridV||x.gridV<3){x.grille=JSON.parse(JSON.stringify(GRILLE_OFFICIELLE));
     if(!x.matieres.find(m=>m.id==="TICE"))x.matieres.push({id:"TICE",code:"TICE",nom:"TICE (informatique)",h:235,bloc:false,matin:false,salle:""});
     const ap=x.matieres.find(m=>m.id==="AP");if(ap&&/Arts plastiques/.test(ap.nom))ap.nom="Dessin / Éducation musicale";x.gridV=3}
-  if(x.gridV<4){["6e","5e","4e","2ndeA"].forEach(n=>{const g=x.grille[n]=x.grille[n]||{};g.PC=1.5;g.SVT=1.5});x.gridV=4}
+  if(x.gridV<4){["6e","5e","4e","2ndeA"].forEach(n=>{const g=x.grille[n]=x.grille[n]||{};g.PC=1.5;g.SVT=1.5});x.gridV=4}if(x.gridV<5){const g=x.grille["3e"]=x.grille["3e"]||{};["PC","SVT"].forEach(m=>{if(!(+g[m]>=2)){g[m]=2;if(x.decoup&&x.decoup["3e"])delete x.decoup["3e"][m]}});x.gridV=5}
   x.classes.forEach(c=>{c.salle=c.salle||"";if(c.salle&&!x.salles.find(r=>r.id===c.salle)){let r=x.salles.find(r=>r.nom===c.salle);if(!r){r={id:uid(),nom:c.salle,type:"Classe",multi:false};x.salles.push(r)}c.salle=r.id}});
   x.matieres.forEach(m=>{m.salle=m.salle||"";if(m.labH===undefined)m.labH=(m.id==="PC"||m.id==="SVT")?1:""});
   {const pc=x.matieres.find(m=>m.id==="PC"),svt=x.matieres.find(m=>m.id==="SVT");
